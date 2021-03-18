@@ -51,7 +51,7 @@ std::vector<coord> coordinates_of_the_1st_interaction(std::vector<longDoubleTupl
 
 void cap();
 
-std::string exec(const char* cmd);
+std::string exec(std::string str_obj);
 
 void plot_of_the_1st_interaction(std::string& name);
 
@@ -71,10 +71,8 @@ int main() {
     data_file_creation(name2, first_interaction);
 
     cap();
-    char* char_arr;
-    std::string str_obj("paste '" + name1 + "' '" + name2 + "' > test1");
-    char_arr = &str_obj[0];
-    exec(char_arr);
+
+    exec("paste '" + name1 + "' '" + name2 + "' > test1");
     plot_of_the_1st_interaction(name1);
 
     
@@ -178,7 +176,8 @@ void cap() {
 }
 
 //This function can return the terminal output. We will use it just for input.
-std::string exec(const char* cmd) {
+std::string exec(std::string str_obj) {
+    const char* cmd = &str_obj[0];
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
