@@ -118,22 +118,20 @@ void default_distribution_plot(std::string& name, std::string& data, std::string
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    else {
-        std::vector<std::string> stuff = {"set term svg",
-                                          "set out \'" + name + ".svg\'",
-                                          "set xlabel \'" + xlabel + "\'",
-                                          "set ylabel \'" + ylabel + "\'",
-                                          "set grid xtics ytics",
-                                          "set title \'" + title + "\'",
-                                          "plot \'" + data + "\' using 1:2 lw 1 lt rgb 'orange' ti \'Nodes\'",
-                                          "set key box top right",
-                                          "set terminal pop",
-                                          "set output",
-                                          "replot"};
-        for (const auto& it : stuff)
-            fprintf(gp, "%s\n", it.c_str());
-        pclose(gp);
-    }
+    std::vector<std::string> stuff = {"set term svg",
+                                      "set out \'" + name + ".svg\'",
+                                      "set xlabel \'" + xlabel + "\'",
+                                      "set ylabel \'" + ylabel + "\'",
+                                      "set grid xtics ytics",
+                                      "set title \'" + title + "\'",
+                                      "plot \'" + data + "\' using 1:2 lw 1 lt rgb 'orange' ti \'Nodes\'",
+                                      "set key box top right",
+                                      "set terminal pop",
+                                      "set output",
+                                      "replot"};
+    for (const auto& it : stuff)
+        fprintf(gp, "%s\n", it.c_str());
+    pclose(gp);
 }
 
 //Function creates directions and lengths of flight of a particle before the first interaction.
@@ -179,40 +177,38 @@ void cap() {
     data_file_creation(name, cage);
 }
 
-void plot_of_the_1st_interaction(std::string& name) {
-    FILE *gp = popen("gnuplot  -persist", "w");
-    if (!gp)
-        throw std::runtime_error("Error opening pipe to GNUplot.");
-    else {
-        std::vector<std::string> stuff = {"set term svg",
-                                          "set out \'" + name + ".svg\'",
-                                          "set grid xtics ytics ztics",
-                                          "set xrange [-1:1]",
-                                          "set yrange [-1:1]",
-                                          "set zrange [0:1]",
-                                          "set ticslevel 0",
-                                          "set border 4095",
-                                          "splot \'" + name + "\',\
-                                          \'cap\' w l,\
-                                          \'test1\' w vectors nohead",
-                                          "set terminal wxt",
-                                          "set output",
-                                          "replot"};
-        for (const auto& it : stuff)
-            fprintf(gp, "%s\n", it.c_str());
-        pclose(gp);
-    }
-}
-
 //This function can return the terminal output. We will use it just for input.
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
     if (!pipe)
-       throw std::runtime_error("popen() failed!");
+        throw std::runtime_error("popen() failed!");
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
         result += buffer.data();
     result = result.substr(0, result.length()-1);
     return result;
+}
+
+void plot_of_the_1st_interaction(std::string& name) {
+    FILE *gp = popen("gnuplot  -persist", "w");
+    if (!gp)
+        throw std::runtime_error("Error opening pipe to GNUplot.");
+    std::vector<std::string> stuff = {"set term svg",
+                                      "set out \'" + name + ".svg\'",
+                                      "set grid xtics ytics ztics",
+                                      "set xrange [-1:1]",
+                                      "set yrange [-1:1]",
+                                      "set zrange [0:1]",
+                                      "set ticslevel 0",
+                                      "set border 4095",
+                                      "splot \'" + name + "\',\
+                                      \'cap\' w l,\
+                                      \'test1\' w vectors nohead",
+                                      "set terminal wxt",
+                                      "set output",
+                                      "replot"};
+    for (const auto& it : stuff)
+        fprintf(gp, "%s\n", it.c_str());
+    pclose(gp);
 }
