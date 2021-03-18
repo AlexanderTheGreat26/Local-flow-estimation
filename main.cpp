@@ -200,8 +200,8 @@ void plot_of_the_1st_interaction(std::string& name) {
                                           "replot"};
         for (const auto& it : stuff)
             fprintf(gp, "%s\n", it.c_str());
-    }
         pclose(gp);
+    }
 }
 
 //This function can return the terminal output. We will use it just for input.
