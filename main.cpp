@@ -194,8 +194,8 @@ void plot_of_the_1st_interaction(std::string& name) {
                                           "set border 4095",
                                           "splot \'" + name + "\',\
                                           \'cap\' w l,\
-                                          \'test1\' w vectors",
-                                          "set terminal pop",
+                                          \'test1\' w vectors nohead",
+                                          "set terminal wxt",
                                           "set output",
                                           "replot"};
         for (const auto& it : stuff)
