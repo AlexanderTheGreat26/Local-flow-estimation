@@ -23,19 +23,26 @@
 #include <array>
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
 
 const unsigned N = 1.0e3; //Number of points.
-constexpr long double eps = 1.0 / N;
-const long double R = 1;
-const long double pi = 3.14159265359;
-constexpr long double Sigma = 0.0349 + 0.00523 + 0.005;
-bool flag = false;
+constexpr double eps = 1.0 / N;
+const double R = 1;
+const double pi = 3.14159265359;
 
 
-typedef std::tuple<long double, long double, long double> coord;
+typedef std::tuple<double, double, double> coord;
 
-typedef std::tuple<long double, long double, long double, long double> longDoubleTuple;
+typedef std::tuple<double, double, double, double> longDoubleTuple;
 
+std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //There's a plane equation presented like Ax+By+Cz+D=0.
+                                       std::make_tuple(0, 1, 0, -1),
+                                       std::make_tuple(1, 0, 0, 1),
+                                       std::make_tuple(0, 1, 0, 1),
+                                       std::make_tuple(1, 0, 0, -1)};
+
+std::tuple<double, double, double> Sigma_air_2 = std::make_tuple(0.0438, 0.0000003, 0.000387);
+std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
 
 std::vector <coord> polar ();
 
@@ -45,58 +52,60 @@ void data_file_creation (std::string& DataType, std::vector<coord>& xx);
 
 void default_distribution_plot(std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title);
 
-std::vector<longDoubleTuple> direction_beam();
+std::vector<longDoubleTuple> beam_direction ();
 
-std::vector<coord> coordinates_of_the_1st_interaction(std::vector<longDoubleTuple>& beams);
-
-void cap();
+std::vector<coord> coordinates_of_the_interaction(std::vector<longDoubleTuple>& beams);
 
 std::string exec(std::string str_obj);
 
 void plot_of_the_1st_interaction(std::string& name);
 
+std::vector<coord> definition_of_intersection_points (std::vector<coord>& initials, std::vector<longDoubleTuple>& beams);
+
+std::tuple<double, double, double> statistical_weight(std::tuple<double, double, double>& sigma);
+
+int interaction_type(std::tuple<double, double, double>& Sigma);
+
+
 
 int main() {
     srand(time(nullptr));
     std::vector<coord> borning = std::move(polar());
-    std::vector<coord> points = std::move(coordinate_transformation(borning));
+    std::vector<coord> points = coordinate_transformation(borning);
     std::string name1 = "Distribution of " + std::to_string(N) + " points";
     data_file_creation(name1, points);
     default_distribution_plot(name1, name1, "x", "y", name1);
 
-    
-    std::vector<longDoubleTuple>beams = std::move(direction_beam());
-    std::vector<coord> first_interaction = std::move(coordinates_of_the_1st_interaction(beams));
+    std::vector<longDoubleTuple> beams = beam_direction();
     std::string name2 = "1st interaction";
-    data_file_creation(name2, first_interaction);
-
-    cap();
-
+    std::vector<coord> points2 = definition_of_intersection_points(points, beams);
+    data_file_creation(name2, points2);
     exec("paste '" + name1 + "' '" + name2 + "' > test1");
     plot_of_the_1st_interaction(name1);
 
-    
+
+
     return 0;
 }
 
 std::vector <coord> polar () {
-    std::vector <coord> coords;
+    std::vector <coord> coordinates;
     for (unsigned i = 0; i < N; i++) {
-        long double rho = R * std::sqrt(eps * (rand() % (N + 1)));
-        long double phi = 2 * pi * eps * (rand() % (N + 1));
-        long double z = 0;
-        coords.emplace_back(std::move(std::make_tuple(phi, rho, z)));
+        double rho = R * std::sqrt(eps * (rand() % (N + 1)));
+        double phi = 2 * pi * eps * (rand() % (N + 1));
+        double z = 0;
+        coordinates.emplace_back(std::move(std::make_tuple(phi, rho, z)));
     }
-    return coords;
+    return coordinates;
 }
 
 std::vector<coord> coordinate_transformation(std::vector<coord>& coords) {
     std::vector<coord> xOy;
     for(unsigned i = 0; i < coords.size(); i++) {
-        long double phi = std::get<0>(coords[i]);
-        long double rho = std::get<1>(coords[i]);
-        long double x = rho * cos(phi);
-        long double y = rho * sin(phi);
+        double phi = std::get<0>(coords[i]);
+        double rho = std::get<1>(coords[i]);
+        double x = rho * cos(phi);
+        double y = rho * sin(phi);
         xOy.emplace_back(std::move(std::make_tuple(x, y, std::get<2>(coords[i]))));
     }
     return xOy;
@@ -133,35 +142,32 @@ void default_distribution_plot(std::string& name, std::string& data, std::string
 }
 
 //Function creates directions and lengths of flight of a particle before the first interaction.
-std::vector<longDoubleTuple> direction_beam() {
+std::vector<longDoubleTuple> beam_direction () {
     std::vector <longDoubleTuple> beams;
     for(unsigned i = 0; i < N; i++) {
-        long double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
-        long double L, a, b, d = 10;
+        double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
+        double L, a, b, d = 10;
         do {
             a = 2 * eps * (rand() % (N + 1)) - 1;
             b = 2 * eps * (rand() % (N + 1)) - 1;
             d = std::pow(a, 2) + std::pow(b, 2);
-            L = - log(eps * (rand() % (N + 1))) / Sigma;
+            //L = - log(eps * (rand() % (N + 1))) / Sigma;
         } while (d > 1 || std::isfinite(L) == 0);
-        long double cosPsi = a / std::sqrt(d);
-        long double sinPsi = b / std::sqrt(d);
+        double cosPsi = a / std::sqrt(d);
+        double sinPsi = b / std::sqrt(d);
         beams.emplace_back(mu, cosPsi, sinPsi, L);
     }
     return beams;
 }
 
-std::vector<coord> coordinates_of_the_1st_interaction(std::vector<longDoubleTuple>& beams) {
+std::vector<coord> coordinates_of_the_interaction(std::vector<longDoubleTuple>& beams) {
     std::vector<coord> coordinates;
     for(unsigned i = 0; i < beams.size(); i++) {
-        long double x = std::get<0>(beams[i]) * std::get<3>(beams[i]);
-        long double y = std::get<1>(beams[i]) * std::get<3>(beams[i]);
-        long double z = std::get<2>(beams[i]) * std::get<3>(beams[i]);
-        if (flag == 0)
-            z = std::abs(z);
-        coordinates.emplace_back(x, y, z);
+        double x = std::get<2>(beams[i]) * std::get<3>(beams[i]);
+        double y = std::get<1>(beams[i]) * std::get<3>(beams[i]);
+        double z = std::get<0>(beams[i]) * std::get<3>(beams[i]);
+        coordinates.emplace_back(std::move(std::make_tuple(x, y, z)));
     }
-    flag = true;
     return coordinates;
 }
 
@@ -199,6 +205,8 @@ void plot_of_the_1st_interaction(std::string& name) {
                                       "set xrange [-1:1]",
                                       "set yrange [-1:1]",
                                       "set zrange [0:1]",
+                                      //"set xlabel 'x'",
+                                      "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
                                       "splot \'" + name + "\',\
@@ -210,4 +218,47 @@ void plot_of_the_1st_interaction(std::string& name) {
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
     pclose(gp);
+}
+
+std::vector<coord> definition_of_intersection_points (std::vector<coord>& initials, std::vector<longDoubleTuple>& beams) {
+    std::vector<coord> intersections;
+    double x, y, z;
+    for(unsigned i = 0; i < initials.size(); i++) {
+        double x_init = std::get<0>(initials[i]);
+        double y_init = std::get<1>(initials[i]);
+        double z_init = std::get<2>(initials[i]);
+        double cos1 = std::get<2>(beams[i]);
+        double cos2 = std::get<1>(beams[i]);
+        double cos3 = std::get<0>(beams[i]);
+        double k = cos2 / cos1;
+        double a = y_init - k * x_init;
+        double h = cos3 / cos1;
+        double b = z_init - h * x_init;
+        int j = 0;
+        do {
+            double A = std::get<0>(planes[j]);
+            double B = std::get<1>(planes[j]);
+            double C = std::get<2>(planes[j]);
+            double D = std::get<3>(planes[j]);
+            x = -(B*a + C*b - D) / (A + B*k + C*h);
+            y = k*x + a;
+            z = h*x + b;
+            j++;
+        } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && !std::isnan(x));
+        intersections.emplace_back(std::make_tuple(x, y, z));
+    }
+    return intersections;
+}
+
+std::tuple<double, double, double> statistical_weight(std::tuple<double, double, double>& sigma) {
+    double sum = std::get<0>(sigma) + std::get<1>(sigma) + std::get<2>(sigma);
+    double p_Compton = std::get<0>(sigma) / sum;
+    double p_ph = std::get<1>(sigma) / sum;
+    double p_pp = std::get<2>(sigma) / sum;
+    return std::make_tuple(p_Compton, p_ph, p_pp);
+}
+
+int interaction_type (std::tuple<double, double, double>& p) {
+    double gamma = eps * (rand() % (N+1));
+    return (gamma <= std::get<0>(p)) ? 1 : (gamma <= std::get<1>(p)) ? 2 : 3;
 }
