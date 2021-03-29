@@ -30,6 +30,10 @@ constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
 
+const double E_min = 1.0e5;
+const double E_0 = 2.0e6;
+const double E_e = 0.5110034e6;
+
 bool flag = false;
 
 typedef std::tuple<double, double, double> coord;
@@ -70,7 +74,7 @@ std::tuple<double, double, double> statistical_weight(std::tuple<double, double,
 
 unsigned interaction_type(std::tuple<double, double, double>& Sigma);
 
-std::vector<unsigned> interaction ();
+std::array<std::vector<double>, N> interactions (std::vector<coord>& intersections);
 
 int main() {
     srand(time(nullptr));
@@ -88,9 +92,7 @@ int main() {
     plot_of_the_1st_interaction(name1);
     flag = true; //The first interaction passed.
 
-
-
-    /*if abs(x_i) == 1 ... sigma_...*/
+    std::array<std::vector<double>, N> Energies = interactions(points2);
 
     return 0;
 }
@@ -271,23 +273,32 @@ unsigned interaction_type (std::tuple<double, double, double>& p) {
     return (gamma <= std::get<0>(p)) ? 1 : (gamma <= std::get<1>(p)) ? 2 : 3;
 }
 
-std::vector<unsigned> interactions (std::vector<coord>& intersections) {
+//The function returns energy steps for every particle.
+std::array<std::vector<double>, N> interactions (std::vector<coord>& intersections) {
     /* Hint: There are some features for std::tuple that can make the function bellow shorter
      * in c++17 and c++20 like apply and for_each_in_tuple.*/
     std::tuple<double, double, double> p_air = statistical_weight(Sigma_air_2);
     std::tuple<double, double, double> p_Pb = statistical_weight(Sigma_Pb_2);
+    std::vector<double> Energy;
+    std::array<std::vector<double>, N> Energies;
     for(unsigned i = 0; i < intersections.size(); i++) {
+        double E = E_0;
+        double alpha = E_0 / E_e;
+        unsigned type;
         std::tuple<double, double, double> Sigma;
         double x = std::get<0>(intersections[i]);
         double y = std::get<1>(intersections[i]);
         double z = std::get<2>(intersections[i]);
         do {
             if (std::abs(x) < 1 && std::abs(y) < 1 && z < 1)
-                unsigned type = interaction_type(p_air);
+                type = interaction_type(p_air); //Rewrite this shit.
             else
-                unsigned type = interaction_type(p_Pb);
-
-        } while (E > E_0);
+                type = interaction_type(p_Pb);
+            alpha = alpha / (1 + cost);
+            Energy.emplace_back(E);
+        } while (E > E_min || type == 1);
+        Energies.at(i) = Energy;
     }
+    return Energies;
 }
 
