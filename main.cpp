@@ -412,3 +412,5 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
     }
     return Energies;
 }
+
+//The end.
