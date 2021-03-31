@@ -24,6 +24,7 @@
 #include <memory>
 #include <stdexcept>
 #include <algorithm>
+//#include "for_each_in_tuple.h"
 
 const unsigned N = 1.0e3; //Number of points.
 constexpr double eps = 1.0 / N;
@@ -75,6 +76,8 @@ std::tuple<double, double, double> statistical_weight(std::tuple<double, double,
 unsigned interaction_type(std::tuple<double, double, double>& Sigma);
 
 std::array<std::vector<double>, N> interactions (std::vector<coord>& intersections);
+
+double cost (coord& A, coord& B, coord& C);
 
 int main() {
     srand(time(nullptr));
@@ -294,11 +297,16 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& intersectio
                 type = interaction_type(p_air); //Rewrite this shit.
             else
                 type = interaction_type(p_Pb);
-            alpha = alpha / (1 + cost);
+            
+            alpha /= (1 + cost);
             Energy.emplace_back(E);
-        } while (E > E_min || type == 1);
+        } while (E > E_min || type == 2);
         Energies.at(i) = Energy;
     }
     return Energies;
 }
 
+double cost(coord& A, coord& B, coord& C) {
+    //Well, we have to use vector if tuples and create for_each_in_tuple or read data from file.
+    //Try via multiplot.
+}
