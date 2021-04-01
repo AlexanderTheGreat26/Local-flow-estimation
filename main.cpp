@@ -23,10 +23,10 @@
 #include <array>
 #include <memory>
 #include <stdexcept>
-#include <algorithm>
+//#include <algorithm>
 
 
-const unsigned N = 1.0e3; //Number of points.
+const unsigned N = 1.0e2; //Number of points.
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -86,6 +86,8 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points);
 
 double cost (coord& A, coord& B, coord& C);
 
+void plot(std::array<std::vector<coord>, N>& points);
+
 int main() {
     srand(time(nullptr));
     std::vector<coord> borning = std::move(polar());
@@ -94,6 +96,7 @@ int main() {
     data_file_creation(name1, born_points);
     default_distribution_plot(name1, name1, "x", "y", name1);
     std::array<std::vector<double>, N> Energies = interactions(born_points);
+    plot(interaction_points);
     //std::vector<longDoubleTuple> beams = beam_direction(Sigma_air_sum);
     //std::string name2 = "1st interaction";
     //std::vector<coord> points2 = definition_of_intersection_points(points, beams);
@@ -103,7 +106,9 @@ int main() {
     //flag = true; //The first interaction passed.
 
     //std::array<std::vector<double>, N> Energies = interactions(points2);
-
+    //std::cout <<
+    for(unsigned i = 0; i < N; i++)
+        std::cout << std::get<2>(interaction_points[i][0]) << std::endl;
     return 0;
 }
 
@@ -366,11 +371,13 @@ double cost(coord& A, coord& B, coord& C) {
 
 //The function returns energy steps for every particle.
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
+
     std::tuple<double, double, double> p_air = statistical_weight(Sigma_air_2);
     std::tuple<double, double, double> p_Pb = statistical_weight(Sigma_Pb_2);
     std::vector<double> Energy;
     std::array<std::vector<double>, N> Energies;
     for(unsigned i = 0; i < points.size(); i++) {
+        //interaction_points.at(i).emplace_back(points[i]);
         double alpha_min = E_min / E_0;
         double alpha = E_0 / E_e;
         unsigned type;
@@ -379,7 +386,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
         double x = std::get<0>(points[i]);
         double y = std::get<1>(points[i]);
         double z = std::get<2>(points[i]);
-        coord C, B, A = points[i];
+        coord A, C, B;// = points[i];
         longDoubleTuple direction = beam_direction(Sigma_air_sum);
         coord point_of_intersection = definition_of_intersection_points(points[i], direction);
         do {
@@ -396,21 +403,65 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
                                     std::get<1>(direction),
                                     std::get<0>(direction));
                 double cos_ab = cost(A, B, C);
+                A = B;
                 B = std::move(definition_of_intersection_points(B, direction));
                 x = std::get<0>(B);
                 y = std::get<1>(B);
                 z = std::get<2>(B);
+                //std::cout << x << '\t' << y << '\t' << z << std::endl;
+
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
+                //std::cout << std::get<2>(B) << std::endl;
+                A = points[i];
                 B = point_of_intersection;
                 flag = true;
             }
             Energy.emplace_back(alpha);
             interaction_points.at(i).emplace_back(B);
+            //std::cout << std::get<2>(B) << std::endl;
         } while (alpha > alpha_min || type == 2);
         Energies.at(i) = Energy;
     }
     return Energies;
 }
 
-//The end.
+void plot(std::array<std::vector<coord>, N>& points) {
+    FILE *gp = popen("gnuplot  -persist", "w");
+    if (!gp)
+        throw std::runtime_error("Error opening pipe to GNUplot.");
+    std::vector<std::string> stuff = {//"set term svg",
+                                      //"set out \'test.svg\'",
+                                      "set term wxt",
+                                      "set multiplot",
+                                      "set grid xtics ytics ztics",
+
+                                      "set xrange [-5:5]",
+                                      "set yrange [-5:5]",
+                                      "set zrange [0:2]",
+                                      //"set xlabel 'x'",
+                                      "set key off",
+                                      "set ticslevel 0",
+                                      "set border 4095",
+                                      //"splot \'" + name + "\',\
+                                      \'cap\' w l,\
+                                      \'test1\' w vectors nohead",
+                                      //"set terminal wxt",
+                                      //"set output",
+                                      //"replot"
+
+                                      "splot '-' u 1:2:3 w lines"};
+    for (const auto& it : stuff)
+        fprintf(gp, "%s\n", it.c_str());
+    //std::array<std::vector<coord>, N>
+    for(unsigned i = 0; i < N; i++) {
+        for (unsigned j = 0; j < points[i].size(); j++) {
+            double x = std::get<0>(points[i][j]);
+            double y = std::get<1>(points[i][j]);
+            double z = std::get<2>(points[i][j]);
+            fprintf(gp, "%f\t%f\t%f'n", x, y, z);
+        }
+        fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
+    }
+    pclose(gp);
+}
