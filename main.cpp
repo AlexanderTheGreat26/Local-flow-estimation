@@ -35,7 +35,6 @@ const double E_min = 1.0e5;
 const double E_0 = 2.0e6;
 const double E_e = 0.5110034e6;
 
-//bool flag = false;
 
 typedef std::tuple<double, double, double> coord;
 
@@ -52,7 +51,7 @@ const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2)
 const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
 const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);
 
-std::array<std::vector<coord>, N> interaction_points; //Try to plot it!
+std::array<std::vector<coord>, N> interaction_points;
 
 std::vector <coord> polar ();
 
@@ -62,25 +61,15 @@ void data_file_creation (std::string& DataType, std::vector<coord>& xx);
 
 void default_distribution_plot(std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title);
 
-//std::vector<longDoubleTuple> beam_direction (double sigma);
-
 longDoubleTuple beam_direction(double sigma);
 
 coord coordinates_of_the_interaction(longDoubleTuple& beams);
 
 std::string exec(std::string str_obj);
 
-void plot_of_the_1st_interaction(std::string& name);
-
-//std::vector<coord> definition_of_intersection_points (std::vector<coord>& initials, std::vector<longDoubleTuple>& beams);
-
-coord definition_of_intersection_points(double& initial_point, longDoubleTuple& beam);
-
 std::tuple<double, double, double> statistical_weight(std::tuple<double, double, double> sigma);
 
 unsigned interaction_type(std::tuple<double, double, double>& Sigma);
-
-//std::array<std::vector<double>, N> interactions (std::vector<coord>& intersections);
 
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points);
 
@@ -97,18 +86,6 @@ int main() {
     default_distribution_plot(name1, name1, "x", "y", name1);
     std::array<std::vector<double>, N> Energies = interactions(born_points);
     plot(interaction_points);
-    //std::vector<longDoubleTuple> beams = beam_direction(Sigma_air_sum);
-    //std::string name2 = "1st interaction";
-    //std::vector<coord> points2 = definition_of_intersection_points(points, beams);
-    //data_file_creation(name2, points2);
-    //exec("paste '" + name1 + "' '" + name2 + "' > test1");
-    //plot_of_the_1st_interaction(name1);
-    //flag = true; //The first interaction passed.
-
-    //std::array<std::vector<double>, N> Energies = interactions(points2);
-    //std::cout <<
-    for(unsigned i = 0; i < N; i++)
-        std::cout << std::get<2>(interaction_points[i][0]) << std::endl;
     return 0;
 }
 
@@ -179,26 +156,6 @@ longDoubleTuple beam_direction(double sigma) {
     return std::make_tuple(mu, cosPsi, sinPsi, L);
 }
 
-
-//Function creates directions and lengths of flight of a particle before the first interaction.
-/*std::vector<longDoubleTuple> beam_direction (double sigma) {
-    std::vector <longDoubleTuple> beams;
-    for(unsigned i = 0; i < N; i++) {
-        double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
-        double L, a, b, d = 10;
-        do {
-            a = 2 * eps * (rand() % (N + 1)) - 1;
-            b = 2 * eps * (rand() % (N + 1)) - 1;
-            d = std::pow(a, 2) + std::pow(b, 2);
-            L = - log(eps * (rand() % (N + 1))) / sigma;
-        } while (d > 1 || std::isfinite(L) == 0);
-        double cosPsi = a / std::sqrt(d);
-        double sinPsi = b / std::sqrt(d);
-        beams.emplace_back(mu, cosPsi, sinPsi, L);
-    }
-    return beams;
-}*/
-
 coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     double x = std::get<2>(beam) * std::get<3>(beam);
     double y = std::get<1>(beam) * std::get<3>(beam);
@@ -218,7 +175,7 @@ void cap() {
 
 //This function can return the terminal output. We will use it just for input.
 std::string exec(std::string str_obj) {
-    const char* cmd = &str_obj[0];
+    const char *cmd = &str_obj[0];
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
@@ -226,35 +183,9 @@ std::string exec(std::string str_obj) {
         throw std::runtime_error("popen() failed!");
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
         result += buffer.data();
-    result = result.substr(0, result.length()-1);
+    result = result.substr(0, result.length() - 1);
     return result;
 }
-
-/*void plot_of_the_1st_interaction(std::string& name) {
-    FILE *gp = popen("gnuplot  -persist", "w");
-    if (!gp)
-        throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term svg",
-                                      "set out \'" + name + ".svg\'",
-                                      "set grid xtics ytics ztics",
-                                      "set xrange [-1:1]",
-                                      "set yrange [-1:1]",
-                                      "set zrange [0:1]",
-                                      //"set xlabel 'x'",
-                                      "set key off",
-                                      "set ticslevel 0",
-                                      "set border 4095",
-                                      "splot \'" + name + "\',\
-                                      \'cap\' w l,\
-                                      \'test1\' w vectors nohead",
-                                      "set terminal wxt",
-                                      "set output",
-                                      "replot"};
-    for (const auto& it : stuff)
-        fprintf(gp, "%s\n", it.c_str());
-    pclose(gp);
-}*/
-
 
 coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& beam) {
     double x, y, z;
@@ -285,40 +216,6 @@ coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& b
         return std::make_tuple(x, y, z);
 
 }
-
-// We need to use in every time, when the particle inside the box. So it will be double.
-/*std::vector<coord> definition_of_intersection_points (std::vector<coord>& initials, std::vector<longDoubleTuple>& beams) {
-    std::vector<coord> intersections;
-    double x, y, z;
-    for(unsigned i = 0; i < initials.size(); i++) {
-        double x_init = std::get<0>(initials[i]);
-        double y_init = std::get<1>(initials[i]);
-        double z_init = std::get<2>(initials[i]);
-        double cos1 = std::get<2>(beams[i]);
-        double cos2 = std::get<1>(beams[i]);
-        double cos3 = std::get<0>(beams[i]);
-        double k = cos2 / cos1;
-        double a = y_init - k * x_init;
-        double h = cos3 / cos1;
-        double b = z_init - h * x_init;
-        int j = 0;
-        do {
-            double A = std::get<0>(planes[j]);
-            double B = std::get<1>(planes[j]);
-            double C = std::get<2>(planes[j]);
-            double D = std::get<3>(planes[j]);
-            x = -(B*a + C*b - D) / (A + B*k + C*h);
-            y = k*x + a;
-            z = h*x + b;
-            j++;
-        } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && !std::isnan(x));
-        if (std::get<3> (beams[i]) < std::sqrt(std::pow(x,2) + std::pow(y,2) + std::pow(z,2)))
-            intersections.emplace_back(coordinates_of_the_interaction(beams[i]));
-        else
-            intersections.emplace_back(std::make_tuple(x, y, z));
-    }
-    return intersections;
-}*/
 
 std::tuple<double, double, double> statistical_weight (std::tuple<double, double, double> sigma) {
     double sum = std::get<0>(sigma) + std::get<1>(sigma) + std::get<2>(sigma);
@@ -365,19 +262,16 @@ double scalar_prod_components(const Tuple& t, const Tuple& t1) {
 double cost(coord& A, coord& B, coord& C) {
     coord a = std::move(vector_creation(A, B));
     coord b = std::move(vector_creation(B, C));
-    //std::cout << std::get<1>(B) << '\t' << std::get<1>(A) << std::endl;
     return scalar_prod_components(a, b) / (abs_components(a) * abs_components(b));
 }
 
 //The function returns energy steps for every particle.
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
-
     std::tuple<double, double, double> p_air = statistical_weight(Sigma_air_2);
     std::tuple<double, double, double> p_Pb = statistical_weight(Sigma_Pb_2);
     std::vector<double> Energy;
     std::array<std::vector<double>, N> Energies;
     for(unsigned i = 0; i < points.size(); i++) {
-        //interaction_points.at(i).emplace_back(points[i]);
         double alpha_min = E_min / E_0;
         double alpha = E_0 / E_e;
         unsigned type;
@@ -386,7 +280,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
         double x = std::get<0>(points[i]);
         double y = std::get<1>(points[i]);
         double z = std::get<2>(points[i]);
-        coord A, C, B;// = points[i];
+        coord A, C, B;
         longDoubleTuple direction = beam_direction(Sigma_air_sum);
         coord point_of_intersection = definition_of_intersection_points(points[i], direction);
         do {
@@ -408,18 +302,14 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
                 x = std::get<0>(B);
                 y = std::get<1>(B);
                 z = std::get<2>(B);
-                //std::cout << x << '\t' << y << '\t' << z << std::endl;
-
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
-                //std::cout << std::get<2>(B) << std::endl;
                 A = points[i];
                 B = point_of_intersection;
                 flag = true;
             }
             Energy.emplace_back(alpha);
             interaction_points.at(i).emplace_back(B);
-            //std::cout << std::get<2>(B) << std::endl;
         } while (alpha > alpha_min || type == 2);
         Energies.at(i) = Energy;
     }
@@ -430,32 +320,20 @@ void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {//"set term svg",
-                                      //"set out \'test.svg\'",
-                                      "set term wxt",
+    std::vector<std::string> stuff = {"set term wxt",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
-
                                       "set xrange [-5:5]",
                                       "set yrange [-5:5]",
                                       "set zrange [0:2]",
-                                      //"set xlabel 'x'",
                                       "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
-                                      //"splot \'" + name + "\',\
-                                      \'cap\' w l,\
-                                      \'test1\' w vectors nohead",
-                                      //"set terminal wxt",
-                                      //"set output",
-                                      //"replot"
-
                                       "splot '-' u 1:2:3 w lines"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
-    //std::array<std::vector<coord>, N>
     for(unsigned i = 0; i < N; i++) {
-        for (unsigned j = 0; j < points[i].size(); j++) {
+        for(unsigned j = 0; j < points[i].size(); j++) {
             double x = std::get<0>(points[i][j]);
             double y = std::get<1>(points[i][j]);
             double z = std::get<2>(points[i][j]);
