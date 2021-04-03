@@ -23,10 +23,11 @@
 #include <array>
 #include <memory>
 #include <stdexcept>
-//#include <algorithm>
+#include <utility>
+#include <algorithm>
 
 
-const unsigned N = 1.0e3; //Number of points.
+const unsigned N = 3.0e2; //Number of points.
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -67,9 +68,9 @@ coord coordinates_of_the_interaction(longDoubleTuple& beams);
 
 std::string exec(std::string str_obj);
 
-std::tuple<double, double, double> statistical_weight(std::tuple<double, double, double> sigma);
+std::vector<std::pair<double, std::string>> statistical_weight(std::tuple<double, double, double> sigma);
 
-unsigned interaction_type(std::tuple<double, double, double>& p);
+std::string interaction_type(std::tuple<double, double, double>& p);
 
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points);
 
@@ -88,6 +89,11 @@ int main() {
     default_distribution_plot(name1, name1, "x", "y", name1);
     std::array<std::vector<double>, N> Energies = interactions(born_points);
     cap();
+    //coord test = statistical_weight(Sigma_air_2);
+    //std::cout << std::get<0>(test) << '\t' << std::get<1>(test) << '\t' << std::get<2>(test) << std::endl;
+    //test = statistical_weight(Sigma_Pb_2);
+    //std::cout << std::get<0>(test) << '\t' << std::get<1>(test) << '\t' << std::get<2>(test) << std::endl;
+
     for (int i = 0; i < N; i++) //I don't no why, but it works only here.
         interaction_points.at(i).emplace_back(born_points[i]);
     plot(interaction_points, name1);
@@ -222,17 +228,23 @@ coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& b
 
 }
 
-std::tuple<double, double, double> statistical_weight (std::tuple<double, double, double> sigma) {
+std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<double, double, double> sigma) {
+    std::vector<std::pair<double, std::string>> ans;
     double sum = std::get<0>(sigma) + std::get<1>(sigma) + std::get<2>(sigma);
     double p_Compton = std::get<0>(sigma) / sum;
     double p_ph = std::get<1>(sigma) / sum;
     double p_pp = std::get<2>(sigma) / sum;
-    return std::make_tuple(p_Compton, p_ph, p_pp);
+    ans = {std::make_pair(p_Compton, "p_Compton"), std::make_pair(p_ph, "p_ph"), std::make_pair(p_pp, "p_pp")};
+    return ans;
 }
 
-unsigned interaction_type (std::tuple<double, double, double>& p) {
-    double gamma = eps * (rand() % (N+1));
-    return (gamma <= std::get<0>(p)) ? 1 : (gamma <= std::get<1>(p)) ? 2 : 3;
+std::string interaction_type (std::vector<std::pair<double, std::string>>& p) {
+    std::sort(p.begin(), p.end(), [&] (std::pair<double, std::string>& lhs, std::pair<double, std::string>& rhs) {return true;});
+    double gamma = eps*(rand()%(N+1));
+    for(unsigned i = 0; i < p.size(); i++)
+        if (gamma <= p[i].first)
+            return p[i].second;
+        else continue;
 }
 
 coord vector_creation (coord& A, coord& B) {
@@ -272,14 +284,14 @@ double cost(coord& A, coord& B, coord& C) {
 
 //The function returns energy steps for every particle.
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
-    std::tuple<double, double, double> p_air = statistical_weight(Sigma_air_2);
-    std::tuple<double, double, double> p_Pb = statistical_weight(Sigma_Pb_2);
+    std::vector<std::pair<double, std::string>> p_air = statistical_weight(Sigma_air_2);
+    std::vector<std::pair<double, std::string>> p_Pb = statistical_weight(Sigma_Pb_2);
     std::vector<double> Energy;
     std::array<std::vector<double>, N> Energies;
     for(unsigned i = 0; i < points.size(); i++) {
-        double alpha_min = E_min / E_0;
+        //double alpha_min = E_min / E_0;
         double alpha = E_0 / E_e;
-        unsigned type;
+        std::string type;
         bool flag = false;
         double sigma_sum;
         double x = std::get<0>(points[i]);
@@ -317,7 +329,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
             }
             Energy.emplace_back(alpha);
             interaction_points.at(i).emplace_back(B);
-        } while (alpha > alpha_min || type == 2);
+        } while (type != "p_Compton");
         Energies.at(i) = Energy;
     }
     return Energies;
@@ -348,8 +360,8 @@ void plot(std::array<std::vector<coord>, N>& points, std::string& name) {
             double z = std::get<2>(points[i][j]);
             fprintf(gp, "%f\t%f\t%f'n", x, y, z);
         }
-        //std::cout << points[i].size() << std::endl;
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
+        //std::cout << points[i].size() << std::endl;
     }
     pclose(gp);
 }
