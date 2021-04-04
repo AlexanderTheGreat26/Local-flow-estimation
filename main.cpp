@@ -24,7 +24,7 @@
 #include <algorithm>
 
 
-const unsigned N = 1.0e3; //Number of points.
+const unsigned N = 0.5e3; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -55,7 +55,7 @@ std::vector <coord> polar ();
 
 std::vector <coord> coordinate_transformation (std::vector<coord>& coords);
 
-void data_file_creation (std::string& DataType, std::vector<coord>& xx);
+void data_file_creation (std::string DataType, std::vector<coord>& xx);
 
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title);
 
@@ -65,8 +65,6 @@ coord coordinates_of_the_interaction(longDoubleTuple& beams);
 
 std::vector<std::pair<double, std::string>> statistical_weight(std::tuple<double, double, double> sigma);
 
-std::string interaction_type(std::tuple<double, double, double>& p);
-
 std::array<std::vector<double>, N> interactions (std::vector<coord>& points);
 
 double cos_t (coord& A, coord& B, coord& C);
@@ -74,6 +72,8 @@ double cos_t (coord& A, coord& B, coord& C);
 void cap();
 
 void plot(std::array<std::vector<coord>, N>& points, std::string& name);
+
+std::vector<coord> detector_coordinates ();
 
 int main() {
     srand(time(nullptr));
@@ -86,6 +86,8 @@ int main() {
         interaction_points.at(i).emplace_back(born_points[i]);
     std::array<std::vector<double>, N> Energies = interactions(born_points);
     cap();
+    std::vector<coord> detectors = detector_coordinates();
+    data_file_creation("detectors", detectors);
     plot(interaction_points, name1);
     return 0;
 }
@@ -101,7 +103,7 @@ std::vector <coord> polar () {
     return coordinates;
 }
 
-std::vector<coord> coordinate_transformation(std::vector<coord>& coords) {
+std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     std::vector<coord> xOy;
     for(unsigned i = 0; i < coords.size(); i++) {
         double phi = std::get<0>(coords[i]);
@@ -113,20 +115,20 @@ std::vector<coord> coordinate_transformation(std::vector<coord>& coords) {
     return xOy;
 }
 
-void data_file_creation (std::string& DataType, std::vector<coord>& xx) {
+void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
     fout.open(DataType);
     for(unsigned i = 0; i < xx.size(); i++)
-        fout << std::get<0>(xx[i]) << '\t' << std::get<1>(xx[i]) << '\t'<< std::get<2>(xx[i]) << '\t' << std::endl;
+        fout << std::get<0>(xx[i]) << '\t' << std::get<1>(xx[i]) << '\t' << std::get<2>(xx[i]) << '\t' << std::endl;
     fout.close();
 }
 
-void default_distribution_plot(std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title) {
+void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title) {
     //if you have problems with ".svg", you have to change ".svg" to ".pdf" in strings bellow.
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
-        throw std::runtime_error("Error opening pipe to GNUplot.");
+        throw std::runtime_error ("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
                                       "set out \'" + name + ".svg\'",
                                       "set xlabel \'" + xlabel + "\'",
@@ -143,7 +145,7 @@ void default_distribution_plot(std::string& name, std::string& data, std::string
     pclose(gp);
 }
 
-longDoubleTuple beam_direction(double sigma) {
+longDoubleTuple beam_direction (double sigma) {
     double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
     double L, a, b, d = 10;
     do {
@@ -170,8 +172,7 @@ void cap() {
                                std::make_tuple(1, -1, 1),
                                std::make_tuple(-1, -1, 1),
                                std::make_tuple(-1, 1, 1)};
-    std::string name = "cap";
-    data_file_creation(name, cage);
+    data_file_creation("cap", cage);
 }
 
 coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& beam) {
@@ -262,7 +263,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
     std::vector<double> Energy;
     std::array<std::vector<double>, N> Energies;
     for(unsigned i = 0; i < points.size(); i++) {
-        double alpha_min = E_min / E_0;
+        //double alpha_min = E_min / E_0;
         double alpha = E_0 / E_e;
         std::string type;
         bool flag = false;
@@ -299,7 +300,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
             }
             Energy.emplace_back(alpha);
             interaction_points.at(i).emplace_back(B);
-        } while ((type.empty() == 1 || type == "p_Compton") && alpha > alpha_min);
+        } while (type.empty() == 1 || type == "p_Compton"); // && alpha > alpha_min);
         Energies.at(i) = Energy;
     }
     return Energies;
@@ -312,12 +313,13 @@ void plot(std::array<std::vector<coord>, N>& points, std::string& name) {
     std::vector<std::string> stuff = {"set term pop",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
-                                      "set xrange [-10:10]",
-                                      "set yrange [-10:10]",
+                                      "set xrange [-2:2]",
+                                      "set yrange [-2:2]",
                                       "set zrange [0:5]",
                                       "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
+                                      "splot \'detectors\' u 1:2:3 lw 3 lt rgb 'black'",
                                       "splot \'cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
                                       "splot \'cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
                                       "splot '-' u 1:2:3 w lines"};
@@ -334,3 +336,26 @@ void plot(std::array<std::vector<coord>, N>& points, std::string& name) {
     }
     pclose(gp);
 }
+
+std::vector<coord> detector_coordinates () {
+    std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
+                                    std::make_tuple(0, 0, 1),
+                                    std::make_tuple(0, 0, 1.5),
+                                    std::make_tuple(0, -1, 0.5),
+                                    std::make_tuple(1, 0, 0.5)};
+    return detectors;
+}
+
+//function returns an array of 20 energy groups in range from 1.0e5 eV to 2.0e6 eV.
+/*std::array<std::vector<double>, 20> energy_groups() {
+    std::array<std::vector<double>, 20> E;
+    double E_init = 1.0e5;
+    double E_final = 2.0e6;
+    double group_range = (E_final - E_init) / 20;
+    std::vector<double> borders (20);
+    std::generate(borders.begin(), borders.end(), [&] {return E_init += group_range;});
+}*/
+
+//std::vector<coord> inside (std::array<std::vector<coord>, N>& Energies) {
+
+//}
