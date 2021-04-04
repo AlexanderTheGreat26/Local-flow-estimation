@@ -71,7 +71,7 @@ double cos_t (coord& A, coord& B, coord& C);
 
 void cap();
 
-void plot(std::array<std::vector<coord>, N>& points, std::string& name);
+void plot(std::array<std::vector<coord>, N>& points);
 
 std::vector<coord> detector_coordinates ();
 
@@ -88,7 +88,7 @@ int main() {
     cap();
     std::vector<coord> detectors = detector_coordinates();
     data_file_creation("detectors", detectors);
-    plot(interaction_points, name1);
+    plot(interaction_points);
     return 0;
 }
 
@@ -306,7 +306,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
     return Energies;
 }
 
-void plot(std::array<std::vector<coord>, N>& points, std::string& name) {
+void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
@@ -347,14 +347,24 @@ std::vector<coord> detector_coordinates () {
 }
 
 //function returns an array of 20 energy groups in range from 1.0e5 eV to 2.0e6 eV.
-/*std::array<std::vector<double>, 20> energy_groups() {
-    std::array<std::vector<double>, 20> E;
+//std::array<std::vector<double>, 20> energy_groups() {
+//std::array<std::vector<double>, 20> E;
+/*unsigned energy_group(double& E) {
+    unsigned number_of_groups = 20;
     double E_init = 1.0e5;
     double E_final = 2.0e6;
-    double group_range = (E_final - E_init) / 20;
-    std::vector<double> borders (20);
+    double group_range = (E_final - E_init) / number_of_groups;
+    std::vector<double> borders (number_of_groups);
     std::generate(borders.begin(), borders.end(), [&] {return E_init += group_range;});
-}*/
+    /*for (unsigned i = 1; i < number_of_groups; i++)
+        if (E > borders[i-1] && E < borders[i])
+            return i;
+        else continue;*/
+
+
+
+//Try to make Energies global and Points local.
+
 
 //std::vector<coord> inside (std::array<std::vector<coord>, N>& Energies) {
 
