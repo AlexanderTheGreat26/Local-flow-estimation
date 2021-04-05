@@ -29,7 +29,7 @@ constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
 
-const double E_min = 1.0e5;
+double E_min = 1.0e5;
 const double E_0 = 2.0e6;
 const double E_e = 0.5110034e6;
 
@@ -50,6 +50,10 @@ const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.
 const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);
 
 //std::array<std::vector<coord>, N> interaction_points;
+
+const unsigned number_of_energy_groups = 20;
+
+std::vector<double> borders_of_groups(number_of_energy_groups);
 
 std::array<std::vector<double>, N> Energies;
 
@@ -77,6 +81,10 @@ void plot(std::array<std::vector<coord>, N>& points);
 
 std::vector<coord> detector_coordinates ();
 
+std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points);
+
+void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box);
+
 int main() {
     srand(time(nullptr));
     std::vector<coord> borning = std::move(polar());
@@ -84,12 +92,19 @@ int main() {
     std::string name1 = "Distribution of " + std::to_string(N) + " points";
     data_file_creation(name1, born_points);
     default_distribution_plot(name1, name1, "x", "y", name1);
+
+
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
     std::cout << (Energies[1][0]) << std::endl;
     cap();
-    std::vector<coord> detectors = detector_coordinates();
+    std::vector<coord> detectors = std::move(detector_coordinates());
     data_file_creation("detectors", detectors);
     plot(interaction_points);
+
+
+    double group_range = (E_0 - E_min) / number_of_energy_groups;
+    std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E_min += group_range; });
+    std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));
     return 0;
 }
 
@@ -353,20 +368,14 @@ std::vector<coord> detector_coordinates () {
 
 unsigned energy_group(double& E) {
     E *= E_e;
-    unsigned number_of_groups = 20;
-    double E_init = 1.0e5;
-    double E_final = 2.0e6;
-    double group_range = (E_final - E_init) / number_of_groups;
-    std::vector<double> borders(number_of_groups);
-    std::generate(borders.begin(), borders.end(), [&] { return E_init += group_range; });
-    for (unsigned i = 1; i < number_of_groups; i++)
-        if (E > borders[i - 1] && E < borders[i])
-            return i;
+    for (unsigned i = 1; i < borders_of_groups.size(); i++)
+        if (E >= borders_of_groups[i - 1] && E <= borders_of_groups[i])
+            return i - 1;
 }
 
 //Function returns coordinates and energies of particles inside the box.
-std::vector<std::tuple<coord, double, unsigned >> inside(std::array<std::vector<coord>, N>& points) {
-    std::vector<std::tuple<coord, double, unsigned>> inside_the_box;
+std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points) {
+    std::vector<std::tuple<coord, double, unsigned>> inside_the_box; //May be we don't need no double in this tuple.
     double x, y, z;
     for(unsigned i = 0; i < N; i++)
         for(unsigned j = 0; j < points[i].size(); j++) {
