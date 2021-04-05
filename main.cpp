@@ -358,9 +358,8 @@ std::vector<std::pair<coord, double>> inside(std::array<std::vector<coord>, N>& 
     for(unsigned i = 0; i < N; i++)
         for(unsigned j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
-            if (std::abs(x) <= 1 && std::abs(y) <= 1 && z < 1) {
+            if (std::abs(x) <= 1 && std::abs(y) <= 1 && z < 1)
                 inside_the_box.emplace_back(std::make_pair(std::make_tuple(x, y, z), Energies[i][j]));
-            }
         }
     return inside_the_box;
 }
