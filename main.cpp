@@ -351,39 +351,32 @@ std::vector<coord> detector_coordinates () {
     return detectors;
 }
 
+unsigned energy_group(double& E) {
+    E *= E_e;
+    unsigned number_of_groups = 20;
+    double E_init = 1.0e5;
+    double E_final = 2.0e6;
+    double group_range = (E_final - E_init) / number_of_groups;
+    std::vector<double> borders(number_of_groups);
+    std::generate(borders.begin(), borders.end(), [&] { return E_init += group_range; });
+    for (unsigned i = 1; i < number_of_groups; i++)
+        if (E > borders[i - 1] && E < borders[i])
+            return i;
+}
+
 //Function returns coordinates and energies of particles inside the box.
-std::vector<std::pair<coord, double>> inside(std::array<std::vector<coord>, N>& points) {
-    std::vector<std::pair<coord, double>> inside_the_box;
+std::vector<std::tuple<coord, double, unsigned >> inside(std::array<std::vector<coord>, N>& points) {
+    std::vector<std::tuple<coord, double, unsigned>> inside_the_box;
     double x, y, z;
     for(unsigned i = 0; i < N; i++)
         for(unsigned j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             if (std::abs(x) <= 1 && std::abs(y) <= 1 && z < 1)
-                inside_the_box.emplace_back(std::make_pair(std::make_tuple(x, y, z), Energies[i][j]));
+                inside_the_box.emplace_back(std::make_tuple(std::make_tuple(x, y, z), Energies[i][j], energy_group(Energies[i][j])));
         }
     return inside_the_box;
 }
 
-//function returns an array of 20 energy groups in range from 1.0e5 eV to 2.0e6 eV.
-//std::array<std::vector<double>, 20> energy_groups() {
-//std::array<std::vector<double>, 20> E;
-/*unsigned energy_group(double& E) {
-    unsigned number_of_groups = 20;
-    double E_init = 1.0e5;
-    double E_final = 2.0e6;
-    double group_range = (E_final - E_init) / number_of_groups;
-    std::vector<double> borders (number_of_groups);
-    std::generate(borders.begin(), borders.end(), [&] {return E_init += group_range;});
-    /*for (unsigned i = 1; i < number_of_groups; i++)
-        if (E > borders[i-1] && E < borders[i])
-            return i;
-        else continue;*/
+void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box) {
 
-
-
-//Try to make Energies global and Points local.
-
-
-//std::vector<coord> inside (std::array<std::vector<coord>, N>& Energies) {
-
-//}
+}
