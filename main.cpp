@@ -49,7 +49,9 @@ const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2)
 const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
 const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);
 
-std::array<std::vector<coord>, N> interaction_points;
+//std::array<std::vector<coord>, N> interaction_points;
+
+std::array<std::vector<double>, N> Energies;
 
 std::vector <coord> polar ();
 
@@ -59,13 +61,13 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx);
 
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title);
 
-longDoubleTuple beam_direction(double sigma);
+longDoubleTuple beam_direction (double sigma);
 
-coord coordinates_of_the_interaction(longDoubleTuple& beams);
+coord coordinates_of_the_interaction (longDoubleTuple& beams);
 
 std::vector<std::pair<double, std::string>> statistical_weight(std::tuple<double, double, double> sigma);
 
-std::array<std::vector<double>, N> interactions (std::vector<coord>& points);
+std::array<std::vector<coord>, N> interactions (std::vector<coord>& points);
 
 double cos_t (coord& A, coord& B, coord& C);
 
@@ -82,9 +84,8 @@ int main() {
     std::string name1 = "Distribution of " + std::to_string(N) + " points";
     data_file_creation(name1, born_points);
     default_distribution_plot(name1, name1, "x", "y", name1);
-    for (int i = 0; i < N; i++)
-        interaction_points.at(i).emplace_back(born_points[i]);
-    std::array<std::vector<double>, N> Energies = interactions(born_points);
+    std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
+    std::cout << (Energies[1][0]) << std::endl;
     cap();
     std::vector<coord> detectors = detector_coordinates();
     data_file_creation("detectors", detectors);
@@ -175,11 +176,15 @@ void cap() {
     data_file_creation("cap", cage);
 }
 
+void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
+    x = std::get<0>(point);
+    y = std::get<1>(point);
+    z = std::get<2>(point);
+}
+
 coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& beam) {
-    double x, y, z;
-    double x_init = std::get<0>(initial_point);
-    double y_init = std::get<1>(initial_point);
-    double z_init = std::get<2>(initial_point);
+    double x, x_init, y, y_init, z, z_init;
+    coordinates_from_tuple(x_init, y_init, z_init, initial_point);
     double cos1 = std::get<2>(beam);
     double cos2 = std::get<1>(beam);
     double cos3 = std::get<0>(beam);
@@ -257,26 +262,27 @@ double cos_t(coord& A, coord& B, coord& C) {
 }
 
 //The function returns energy steps for every particle.
-std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
+std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<std::pair<double, std::string>> p_air = statistical_weight(Sigma_air_2);
     std::vector<std::pair<double, std::string>> p_Pb = statistical_weight(Sigma_Pb_2);
     std::vector<double> Energy;
-    std::array<std::vector<double>, N> Energies;
+    //std::array<std::vector<double>, N> Energies;
+    std::array<std::vector<coord>, N> interaction_points;
+    double x, y, z;
     for(unsigned i = 0; i < points.size(); i++) {
         //double alpha_min = E_min / E_0;
+        interaction_points.at(i).emplace_back(points[i]);
         double alpha = E_0 / E_e;
         std::string type;
         bool flag = false;
         double sigma_sum;
-        double x = std::get<0>(points[i]);
-        double y = std::get<1>(points[i]);
-        double z = std::get<2>(points[i]);
+        coordinates_from_tuple(x, y, z, points[i]);
         coord A, C, B;
         longDoubleTuple direction;
         coord point_of_intersection;
         do {
             if (flag == 1) {
-                if (std::abs(x) < 1 && std::abs(y) < 1 && z < 1) {
+                if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1) {
                     sigma_sum = Sigma_air_sum;
                     type = interaction_type(p_air);
                 } else {
@@ -303,7 +309,7 @@ std::array<std::vector<double>, N> interactions (std::vector<coord>& points) {
         } while (type.empty() == 1 || type == "p_Compton"); // && alpha > alpha_min);
         Energies.at(i) = Energy;
     }
-    return Energies;
+    return interaction_points;
 }
 
 void plot(std::array<std::vector<coord>, N>& points) {
@@ -325,11 +331,10 @@ void plot(std::array<std::vector<coord>, N>& points) {
                                       "splot '-' u 1:2:3 w lines"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
+    double x, y, z;
     for(unsigned i = 0; i < N; i++) {
         for(unsigned j = 0; j < points[i].size(); j++) {
-            double x = std::get<0>(points[i][j]);
-            double y = std::get<1>(points[i][j]);
-            double z = std::get<2>(points[i][j]);
+            coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
         }
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
@@ -344,6 +349,20 @@ std::vector<coord> detector_coordinates () {
                                     std::make_tuple(0, -1, 0.5),
                                     std::make_tuple(1, 0, 0.5)};
     return detectors;
+}
+
+//Function returns coordinates and energies of particles inside the box.
+std::vector<std::pair<coord, double>> inside(std::array<std::vector<coord>, N>& points) {
+    std::vector<std::pair<coord, double>> inside_the_box;
+    double x, y, z;
+    for(unsigned i = 0; i < N; i++)
+        for(unsigned j = 0; j < points[i].size(); j++) {
+            coordinates_from_tuple(x, y, z, points[i][j]);
+            if (std::abs(x) <= 1 && std::abs(y) <= 1 && z < 1) {
+                inside_the_box.emplace_back(std::make_pair(std::make_tuple(x, y, z), Energies[i][j]));
+            }
+        }
+    return inside_the_box;
 }
 
 //function returns an array of 20 energy groups in range from 1.0e5 eV to 2.0e6 eV.
