@@ -51,7 +51,7 @@ const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + 
 
 //std::array<std::vector<coord>, N> interaction_points;
 
-const unsigned number_of_energy_groups = 20;
+const unsigned number_of_energy_groups = 10; //Crunch! Read commented lines in main();
 
 std::vector<double> borders_of_groups(number_of_energy_groups);
 
@@ -81,6 +81,8 @@ void plot(std::array<std::vector<coord>, N>& points);
 
 std::vector<coord> detector_coordinates ();
 
+void groups_borders_creation (double first_groups_range);
+
 std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points);
 
 void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box);
@@ -95,16 +97,18 @@ int main() {
 
 
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
-    std::cout << (Energies[1][0]) << std::endl;
     cap();
     std::vector<coord> detectors = std::move(detector_coordinates());
     data_file_creation("detectors", detectors);
     plot(interaction_points);
 
-
-    double group_range = (E_0 - E_min) / number_of_energy_groups;
+    //If you have initial energy less than 1.5 MeV, you can rewrite it like this:
+    /*double group_range = (E_0 - E_min) / number_of_energy_groups;
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E_min += group_range; });
-    std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));
+    std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));*/
+    groups_borders_creation (0.1e6);
+
+
     return 0;
 }
 
@@ -281,11 +285,10 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<std::pair<double, std::string>> p_air = statistical_weight(Sigma_air_2);
     std::vector<std::pair<double, std::string>> p_Pb = statistical_weight(Sigma_Pb_2);
     std::vector<double> Energy;
-    //std::array<std::vector<double>, N> Energies;
     std::array<std::vector<coord>, N> interaction_points;
     double x, y, z;
+    double alpha_min = E_min / E_e;
     for(unsigned i = 0; i < points.size(); i++) {
-        //double alpha_min = E_min / E_0;
         interaction_points.at(i).emplace_back(points[i]);
         double alpha = E_0 / E_e;
         std::string type;
@@ -309,9 +312,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 double cos_ab = cos_t(A, B, C);
                 A = B;
                 B = C;
-                x = std::get<0>(B);
-                y = std::get<1>(B);
-                z = std::get<2>(B);
+                coordinates_from_tuple(x, y, z, B);
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
                 A = points[i];
@@ -321,7 +322,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
             }
             Energy.emplace_back(alpha);
             interaction_points.at(i).emplace_back(B);
-        } while (type.empty() == 1 || type == "p_Compton"); // && alpha > alpha_min);
+        } while (type.empty() == 1 || type == "p_Compton" && alpha > alpha_min);
         Energies.at(i) = Energy;
     }
     return interaction_points;
@@ -384,6 +385,14 @@ std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector
                 inside_the_box.emplace_back(std::make_tuple(std::make_tuple(x, y, z), Energies[i][j], energy_group(Energies[i][j])));
         }
     return inside_the_box;
+}
+
+void groups_borders_creation (double first_groups_range) {
+    double E = 0;
+    //borders_of_groups.emplace_back(first_groups_range);
+    std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E += first_groups_range; });
+    borders_of_groups.emplace_back(1.5e6);
+    borders_of_groups.emplace_back(2.0e6);
 }
 
 void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box) {
