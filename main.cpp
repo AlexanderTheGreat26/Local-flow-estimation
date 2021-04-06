@@ -85,6 +85,8 @@ void groups_borders_creation (double first_groups_range);
 
 std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points);
 
+std::vector<std::tuple<double, double, double>> database_read (std::string name);
+
 void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box);
 
 int main() {
@@ -107,8 +109,9 @@ int main() {
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E_min += group_range; });
     std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));*/
     groups_borders_creation (0.1e6);
-
-
+    /*for(int i =0; i < borders_of_groups.size(); i++)
+        std::cout << borders_of_groups[i] << std::endl;*/
+    std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
     return 0;
 }
 
@@ -387,12 +390,24 @@ std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector
     return inside_the_box;
 }
 
-void groups_borders_creation (double first_groups_range) {
+void groups_borders_creation (double first_groups_range) { //Crunch! Read commented lines in main();
     double E = 0;
-    //borders_of_groups.emplace_back(first_groups_range);
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E += first_groups_range; });
     borders_of_groups.emplace_back(1.5e6);
     borders_of_groups.emplace_back(2.0e6);
+}
+
+std::vector<std::tuple<double, double, double>> database_read (std::string name) {
+    std::vector<std::tuple<double, double, double>> border_sigmas;
+    std::ofstream out(name);
+    if (out.is_open() == 0)
+        throw std::runtime_error ("Error oppening file " + name + "!");
+    double Compton, ph, pp;
+    for (unsigned i = 0; i < borders_of_groups.size(); i++) {
+        out << Compton << '\t' << ph << '\t' << pp << std::endl;
+        border_sigmas.emplace_back(std::make_tuple(Compton, pp, ph));
+    }
+    return border_sigmas;
 }
 
 void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box) {
