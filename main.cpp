@@ -203,7 +203,7 @@ void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
     z = std::get<2>(point);
 }
 
-coord definition_of_intersection_points(coord& initial_point, longDoubleTuple& beam) {
+coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& beam) {
     double x, x_init, y, y_init, z, z_init;
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
     double cos1 = std::get<2>(beam);
