@@ -22,6 +22,7 @@
 #include <tuple>
 #include <array>
 #include <algorithm>
+#include <iterator>
 
 
 const unsigned N = 0.5e3; //Number of points. //Do not use more than 0.5e4 on old computers!
@@ -102,15 +103,13 @@ int main() {
     cap();
     std::vector<coord> detectors = std::move(detector_coordinates());
     data_file_creation("detectors", detectors);
-    plot(interaction_points);
+    //plot(interaction_points);
 
     //If you have initial energy less than 1.5 MeV, you can rewrite it like this:
     /*double group_range = (E_0 - E_min) / number_of_energy_groups;
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E_min += group_range; });
     std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));*/
     groups_borders_creation (0.1e6);
-    /*for(int i =0; i < borders_of_groups.size(); i++)
-        std::cout << borders_of_groups[i] << std::endl;*/
     std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
     return 0;
 }
@@ -397,17 +396,29 @@ void groups_borders_creation (double first_groups_range) { //Crunch! Read commen
     borders_of_groups.emplace_back(2.0e6);
 }
 
-std::vector<std::tuple<double, double, double>> database_read (std::string name) {
-    std::vector<std::tuple<double, double, double>> border_sigmas;
-    std::ofstream out(name);
-    if (out.is_open() == 0)
-        throw std::runtime_error ("Error oppening file " + name + "!");
-    double Compton, ph, pp;
-    for (unsigned i = 0; i < borders_of_groups.size(); i++) {
-        out << Compton << '\t' << ph << '\t' << pp << std::endl;
-        border_sigmas.emplace_back(std::make_tuple(Compton, pp, ph));
+namespace std {
+    istream &operator>>(istream &in, tuple<double, double, double> &data) {
+        double first, second, third;
+        in >> first >> second >> third;
+        data = {first, second, third};
+        return in;
     }
-    return border_sigmas;
+
+    ostream &operator<<(ostream &out, const tuple<double, double, double> &data) {
+        auto[first, second, third] = data;
+        out << first << ' ' << second << ' ' << third << ' ';
+        return out;
+    }
+}
+
+std::vector<std::tuple<double, double, double>> database_read (std::string name) {
+    std::ifstream inFile(name);
+    std::vector<std::tuple<double, double, double>> tuples_vector;
+    copy(std::istream_iterator<std::tuple<double, double, double>>{ inFile },
+         std::istream_iterator<std::tuple<double, double, double>>{},
+         back_inserter(tuples_vector));
+    copy(tuples_vector.begin(), tuples_vector.end(), std::ostream_iterator<std::tuple<double, double, double>>(std::cout, "\n"));
+    return tuples_vector;
 }
 
 void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box) {
