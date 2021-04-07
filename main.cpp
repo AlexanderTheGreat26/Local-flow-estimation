@@ -397,15 +397,15 @@ void groups_borders_creation (double first_groups_range) { //Crunch! Read commen
 }
 
 namespace std {
-    istream &operator>>(istream &in, tuple<double, double, double> &data) {
+    istream& operator >> (istream& in, tuple<double, double, double>& data) {
         double first, second, third;
         in >> first >> second >> third;
         data = {first, second, third};
         return in;
     }
 
-    ostream &operator<<(ostream &out, const tuple<double, double, double> &data) {
-        auto[first, second, third] = data;
+    ostream& operator << (ostream& out, const tuple<double, double, double>& data) {
+        auto [first, second, third] = data;
         out << first << ' ' << second << ' ' << third << ' ';
         return out;
     }
@@ -414,8 +414,8 @@ namespace std {
 std::vector<std::tuple<double, double, double>> database_read (std::string name) {
     std::ifstream inFile(name);
     std::vector<std::tuple<double, double, double>> tuples_vector;
-    copy(std::istream_iterator<std::tuple<double, double, double>>{ inFile },
-         std::istream_iterator<std::tuple<double, double, double>>{},
+    copy(std::istream_iterator<std::tuple<double, double, double>> {inFile},
+         std::istream_iterator<std::tuple<double, double, double>> {},
          back_inserter(tuples_vector));
     //copy(tuples_vector.begin(), tuples_vector.end(), std::ostream_iterator<std::tuple<double, double, double>>(std::cout, "\n"));
     return tuples_vector;
