@@ -103,7 +103,7 @@ int main() {
     cap();
     std::vector<coord> detectors = std::move(detector_coordinates());
     data_file_creation("detectors", detectors);
-    //plot(interaction_points);
+    plot(interaction_points);
 
     //If you have initial energy less than 1.5 MeV, you can rewrite it like this:
     /*double group_range = (E_0 - E_min) / number_of_energy_groups;
@@ -417,7 +417,7 @@ std::vector<std::tuple<double, double, double>> database_read (std::string name)
     copy(std::istream_iterator<std::tuple<double, double, double>>{ inFile },
          std::istream_iterator<std::tuple<double, double, double>>{},
          back_inserter(tuples_vector));
-    copy(tuples_vector.begin(), tuples_vector.end(), std::ostream_iterator<std::tuple<double, double, double>>(std::cout, "\n"));
+    //copy(tuples_vector.begin(), tuples_vector.end(), std::ostream_iterator<std::tuple<double, double, double>>(std::cout, "\n"));
     return tuples_vector;
 }
 
