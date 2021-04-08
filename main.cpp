@@ -114,7 +114,9 @@ int main() {
     return 0;
 }
 
-std::vector <coord> polar () {
+
+//The function returns random points generated in polar coordinate system.
+std::vector<coord> polar () {
     std::vector <coord> coordinates;
     for (unsigned i = 0; i < N; i++) {
         double rho = R * std::sqrt(eps * (rand() % (N + 1)));
@@ -125,6 +127,8 @@ std::vector <coord> polar () {
     return coordinates;
 }
 
+
+//The function transform coordinates of points in polar system to Descart coordinate system.
 std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     std::vector<coord> xOy;
     for(unsigned i = 0; i < coords.size(); i++) {
@@ -137,6 +141,7 @@ std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     return xOy;
 }
 
+//The function creates a data-file with coordinates. It's useful for plotting.
 void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
@@ -146,6 +151,7 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     fout.close();
 }
 
+//Function plots points of borning. It shows the initial distribution.
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title) {
     //if you have problems with ".svg", you have to change ".svg" to ".pdf" in strings bellow.
     FILE *gp = popen("gnuplot  -persist", "w");
@@ -167,6 +173,7 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
     pclose(gp);
 }
 
+//Function returns the beam direction and free run length for particle.
 longDoubleTuple beam_direction (double sigma) {
     double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
     double L, a, b, d = 10;
@@ -181,6 +188,7 @@ longDoubleTuple beam_direction (double sigma) {
     return std::make_tuple(mu, cosPsi, sinPsi, L);
 }
 
+//Function returns vector of beam direction.
 coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     double x = std::get<2>(beam) * std::get<3>(beam);
     double y = std::get<1>(beam) * std::get<3>(beam);
@@ -188,6 +196,7 @@ coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     return std::make_tuple(x, y, std::abs(z));
 }
 
+//Just a function for sarcophagus creation.
 void cap() {
     std::vector<coord> cage = {std::make_tuple(-1, 1, 1),
                                std::make_tuple(1, 1, 1),
@@ -203,6 +212,9 @@ void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
     z = std::get<2>(point);
 }
 
+/* Function returns coordinate of interaction for particles.
+ * If it interaction outside the sarcophagus functions returns the point of intersection with one of the planes,
+ * otherwise it returns the interaction point in air. */
 coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& beam) {
     double x, x_init, y, y_init, z, z_init;
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
@@ -231,6 +243,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
 
 }
 
+//Function returns the probability for types of interaction for environment (which defines with argument).
 std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<double, double, double> sigma) {
     std::vector<std::pair<double, std::string>> ans;
     double sum = std::get<0>(sigma) + std::get<1>(sigma) + std::get<2>(sigma);
@@ -241,18 +254,21 @@ std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<doubl
     return ans;
 }
 
+//Function return random interaction type.
 std::string interaction_type (std::vector<std::pair<double, std::string>>& p) {
     std::sort(p.begin(), p.end());
     double gamma = eps*(rand()%(N+1));
     return (gamma <= p[0].first) ? p[0].second : (gamma <= p[1].first) ? p[1].second : p[2].second;
 }
 
+//Just a function for creating vector with two points.
 coord vector_creation (coord& A, coord& B) {
     return std::make_tuple(std::get<0>(B) - std::get<0>(A),
                            std::get<1>(B) - std::get<1>(A),
                            std::get<2>(B) - std::get<2>(A));
 }
 
+//The templates below will be used for defining the angle between the vectors.
 template<typename T, size_t... Is>
 auto abs_components_impl(T const& t, std::index_sequence<Is...>) {
     return std::sqrt((std::pow(std::get<Is>(t), 2) + ...));
@@ -329,7 +345,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     }
     return interaction_points;
 }
-
+//The function plots the trajectories of particles. So it not fast, so you can comment it in main().
 void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
@@ -360,6 +376,7 @@ void plot(std::array<std::vector<coord>, N>& points) {
     pclose(gp);
 }
 
+//Just a function for detectors creation.
 std::vector<coord> detector_coordinates () {
     std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
                                     std::make_tuple(0, 0, 1),
@@ -369,6 +386,7 @@ std::vector<coord> detector_coordinates () {
     return detectors;
 }
 
+//Function return the number of energy group for particle.
 unsigned energy_group(double& E) {
     E *= E_e;
     for (unsigned i = 1; i < borders_of_groups.size(); i++)
@@ -380,8 +398,8 @@ unsigned energy_group(double& E) {
 std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points) {
     std::vector<std::tuple<coord, double, unsigned>> inside_the_box; //May be we don't need no double in this tuple.
     double x, y, z;
-    for(unsigned i = 0; i < N; i++)
-        for(unsigned j = 0; j < points[i].size(); j++) {
+    for (unsigned i = 0; i < N; i++)
+        for (unsigned j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             if (std::abs(x) <= 1 && std::abs(y) <= 1 && z < 1)
                 inside_the_box.emplace_back(std::make_tuple(std::make_tuple(x, y, z), Energies[i][j], energy_group(Energies[i][j])));
@@ -411,6 +429,8 @@ namespace std {
     }
 }
 
+//Function return data from text file include the interaction cross section for particle with determined energy in
+// environment.
 std::vector<std::tuple<double, double, double>> database_read (std::string name) {
     std::ifstream inFile(name);
     std::vector<std::tuple<double, double, double>> tuples_vector;
