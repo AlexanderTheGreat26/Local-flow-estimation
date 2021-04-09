@@ -115,7 +115,7 @@ int main() {
 }
 
 
-//The function returns random points generated in polar coordinate system.
+//Function returns random points generated in polar coordinate system.
 std::vector<coord> polar () {
     std::vector <coord> coordinates;
     for (unsigned i = 0; i < N; i++) {
@@ -128,7 +128,7 @@ std::vector<coord> polar () {
 }
 
 
-//The function transform coordinates of points in polar system to Descart coordinate system.
+//Function transform coordinates of points in polar system to Descart coordinate system.
 std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     std::vector<coord> xOy;
     for(unsigned i = 0; i < coords.size(); i++) {
@@ -141,7 +141,7 @@ std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     return xOy;
 }
 
-//The function creates a data-file with coordinates. It's useful for plotting.
+//Function creates a data-file with coordinates. It's useful for plotting.
 void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
@@ -407,6 +407,7 @@ std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector
     return inside_the_box;
 }
 
+//Function creates borders in std::vector.
 void groups_borders_creation (double first_groups_range) { //Crunch! Read commented lines in main();
     double E = 0;
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E += first_groups_range; });
@@ -429,8 +430,8 @@ namespace std {
     }
 }
 
-//Function return data from text file include the interaction cross section for particle with determined energy in
-// environment.
+/* Function returns data in std::vector of std::tuple from text file include the interaction cross section for particle
+ * with determined energy in environment. File looks like matrix 3xN. */
 std::vector<std::tuple<double, double, double>> database_read (std::string name) {
     std::ifstream inFile(name);
     std::vector<std::tuple<double, double, double>> tuples_vector;
