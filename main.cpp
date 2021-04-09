@@ -95,6 +95,10 @@ void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_th
 std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
 std::vector<std::tuple<double, double, double>> sigmas_Pb = std::move(database_read("Pb_sigmas_database"));
 
+std::vector<coord> detectors;
+
+std::vector<double> eta (10);
+
 int main() {
     srand(time(nullptr));
     std::vector<coord> borning = std::move(polar());
@@ -104,9 +108,9 @@ int main() {
     default_distribution_plot(name1, name1, "x", "y", name1);
 
     groups_borders_creation (0.1e6);
+    detectors = std::move(detector_coordinates());
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
     cap();
-    std::vector<coord> detectors = std::move(detector_coordinates());
     data_file_creation("detectors", detectors);
     plot(interaction_points);
 
@@ -314,6 +318,26 @@ double cos_t(coord& A, coord& B, coord& C) {
     return scalar_prod_components(a, b) / (abs_components(a) * abs_components(b));
 }
 
+void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::string>>& p, std::string& type,
+                     unsigned& group, std::tuple<double, double, double>& environment, coord& particle_coordinate) {
+    sigma_sum = sum_components(environment);
+    p = statistical_weight(environment);
+    type = interaction_type(p);
+    double x, x_d, y, y_d, z, z_d;
+    if (environment == sigmas_air[group]) {
+        for (unsigned i = 0; i < detectors.size(); i++) {
+            coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
+            if (z_d <= 1) {
+                coord tau = vector_creation(particle_coordinate, detectors[i]);
+                double distance = abs_components(tau);
+                eta[group] += p[0].first * std::exp(-distance) / std::pow(distance, 2) * () / std::get<0>(sigmas_air[group]);
+            }
+        }
+    } else {
+
+    }
+}
+
 //The function returns energy steps for every particle.
 std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<std::pair<double, std::string>> p_air, p_Pb;
@@ -334,16 +358,14 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
         coord point_of_intersection;
         do {
             if (flag == 1) {
+                E = alpha * E_e;
+                Energy.emplace_back(E);
+                interaction_points.at(i).emplace_back(B);
                 unsigned group = energy_group(E);
-                if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1) {
-                    sigma_sum = sum_components(sigmas_air[group]);
-                    p_air = statistical_weight(sigmas_air[group]);
-                    type = interaction_type(p_air);
-                } else {
-                    sigma_sum = sum_components(sigmas_Pb[group]);
-                    p_Pb = statistical_weight(sigmas_Pb[group]);
-                    type = interaction_type(p_Pb);
-                }
+                if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1)
+                    flow_detection(sigma_sum, p_air, type, group, sigmas_air[group], B);
+                else
+                    flow_detection(sigma_sum, p_Pb, type, group, sigmas_Pb[group], B);
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_intersection_points(B, direction);
                 double cos_ab = cos_t(A, B, C);
@@ -357,14 +379,12 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 B = definition_of_intersection_points(A, direction);
                 flag = true;
             }
-            E = alpha * E_e;
-            Energy.emplace_back(E);
-            interaction_points.at(i).emplace_back(B);
         } while (type.empty() == 1 || type == "Compton" && E > E_min);
         Energies.at(i) = Energy;
     }
     return interaction_points;
 }
+
 //The function plots the trajectories of particles. So it not fast, so you can comment it in main().
 void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
@@ -462,26 +482,24 @@ std::vector<std::tuple<double, double, double>> database_read (std::string name)
     return tuples_vector;
 }
 
-/*void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors,
-                     std::vector<std::tuple<double, double, double>>& sigmas) {
-    double x, y, z, x_d, y_d, z_d;
+//void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors) {}
+    /*double x, y, z, x_d, y_d, z_d;
     for (unsigned i = 0; i < detectors.size(); i++) {
         coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
         double eta = 0;
         if (z_d <= 1) {
             for (unsigned j = 0; j < inside_the_box.size(); j++) {
                 coord interaction_point = std::get<0>(inside_the_box[j]);
-                //coordinates_from_tuple(x, y, z, interaction_point);
                 coord tau = vector_creation(interaction_point, detectors[i]);
                 double distance = abs_components(tau);
                 unsigned group = std::get<2>(inside_the_box[i]);
-                double W = ;
+                double W = ; //Стат. вес комптоновского рассеяния для данной группы.
                 eta += W * std::exp(-distance) / std::pow(distance, 2) * / std::get<0>(sigmas[group]); //Need to sum it for every group.
             }
         } else {
 
         }
     }
-}*/
-
+}
+*/
 
