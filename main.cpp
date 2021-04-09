@@ -47,12 +47,12 @@ const std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //The
 
 const std::tuple<double, double, double> Sigma_air_2 = std::make_tuple(0.0438, 0.0000003, 0.000387);
 const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2) + std::get<2>(Sigma_air_2);
-const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
-const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);
+//const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
+//const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);*/
 
 //std::array<std::vector<coord>, N> interaction_points;
 
-const unsigned number_of_energy_groups = 10; //Crunch! Read commented lines in main();
+const unsigned number_of_energy_groups = 8; //Crunch! Read commented lines in main();
 
 std::vector<double> borders_of_groups(number_of_energy_groups);
 
@@ -72,6 +72,8 @@ coord coordinates_of_the_interaction (longDoubleTuple& beams);
 
 std::vector<std::pair<double, std::string>> statistical_weight(std::tuple<double, double, double> sigma);
 
+unsigned energy_group(double& E);
+
 std::array<std::vector<coord>, N> interactions (std::vector<coord>& points);
 
 double cos_t (coord& A, coord& B, coord& C);
@@ -88,7 +90,10 @@ std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector
 
 std::vector<std::tuple<double, double, double>> database_read (std::string name);
 
-void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box);
+void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors);
+
+std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
+std::vector<std::tuple<double, double, double>> sigmas_Pb = std::move(database_read("Pb_sigmas_database"));
 
 int main() {
     srand(time(nullptr));
@@ -98,7 +103,7 @@ int main() {
     data_file_creation(name1, born_points);
     default_distribution_plot(name1, name1, "x", "y", name1);
 
-
+    groups_borders_creation (0.1e6);
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
     cap();
     std::vector<coord> detectors = std::move(detector_coordinates());
@@ -109,8 +114,8 @@ int main() {
     /*double group_range = (E_0 - E_min) / number_of_energy_groups;
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E_min += group_range; });
     std::vector<std::tuple<coord, double, unsigned>> internal_particles = std::move(inside(interaction_points));*/
-    groups_borders_creation (0.1e6);
-    std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
+
+
     return 0;
 }
 
@@ -250,7 +255,7 @@ std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<doubl
     double p_Compton = std::get<0>(sigma) / sum;
     double p_ph = std::get<1>(sigma) / sum;
     double p_pp = std::get<2>(sigma) / sum;
-    ans = {std::make_pair(p_Compton, "p_Compton"), std::make_pair(p_ph, "p_ph"), std::make_pair(p_pp, "p_pp")};
+    ans = {std::make_pair(p_Compton, "Compton"), std::make_pair(p_ph, "ph"), std::make_pair(p_pp, "pp")};
     return ans;
 }
 
@@ -259,6 +264,17 @@ std::string interaction_type (std::vector<std::pair<double, std::string>>& p) {
     std::sort(p.begin(), p.end());
     double gamma = eps*(rand()%(N+1));
     return (gamma <= p[0].first) ? p[0].second : (gamma <= p[1].first) ? p[1].second : p[2].second;
+}
+
+template<typename T, size_t... Is>
+auto sum_components_impl(T const& t, std::index_sequence<Is...>) {
+    return (std::get<Is>(t) + ...);
+}
+
+template <class Tuple>
+double sum_components(const Tuple& t) {
+    constexpr auto size = std::tuple_size<Tuple>{};
+    return sum_components_impl(t, std::make_index_sequence<size>{});
 }
 
 //Just a function for creating vector with two points.
@@ -300,15 +316,15 @@ double cos_t(coord& A, coord& B, coord& C) {
 
 //The function returns energy steps for every particle.
 std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
-    std::vector<std::pair<double, std::string>> p_air = statistical_weight(Sigma_air_2);
-    std::vector<std::pair<double, std::string>> p_Pb = statistical_weight(Sigma_Pb_2);
+    std::vector<std::pair<double, std::string>> p_air, p_Pb;
+    std::vector<std::tuple<double, double, double>> sigmas;
     std::vector<double> Energy;
     std::array<std::vector<coord>, N> interaction_points;
     double x, y, z;
-    double alpha_min = E_min / E_e;
     for(unsigned i = 0; i < points.size(); i++) {
         interaction_points.at(i).emplace_back(points[i]);
         double alpha = E_0 / E_e;
+        double E;
         std::string type;
         bool flag = false;
         double sigma_sum;
@@ -318,11 +334,14 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
         coord point_of_intersection;
         do {
             if (flag == 1) {
+                unsigned group = energy_group(E);
                 if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1) {
-                    sigma_sum = Sigma_air_sum;
+                    sigma_sum = sum_components(sigmas_air[group]);
+                    p_air = statistical_weight(sigmas_air[group]);
                     type = interaction_type(p_air);
                 } else {
-                    sigma_sum = Sigma_Pb_sum;
+                    sigma_sum = sum_components(sigmas_Pb[group]);
+                    p_Pb = statistical_weight(sigmas_Pb[group]);
                     type = interaction_type(p_Pb);
                 }
                 direction = std::move(beam_direction(sigma_sum));
@@ -338,9 +357,10 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 B = definition_of_intersection_points(A, direction);
                 flag = true;
             }
-            Energy.emplace_back(alpha);
+            E = alpha * E_e;
+            Energy.emplace_back(E);
             interaction_points.at(i).emplace_back(B);
-        } while (type.empty() == 1 || type == "p_Compton" && alpha > alpha_min);
+        } while (type.empty() == 1 || type == "Compton" && E > E_min);
         Energies.at(i) = Energy;
     }
     return interaction_points;
@@ -388,8 +408,7 @@ std::vector<coord> detector_coordinates () {
 
 //Function return the number of energy group for particle.
 unsigned energy_group(double& E) {
-    E *= E_e;
-    for (unsigned i = 1; i < borders_of_groups.size(); i++)
+    for (unsigned i = borders_of_groups.size() - 1; i > 0; i--)
         if (E >= borders_of_groups[i - 1] && E <= borders_of_groups[i])
             return i - 1;
 }
@@ -411,6 +430,7 @@ std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector
 void groups_borders_creation (double first_groups_range) { //Crunch! Read commented lines in main();
     double E = 0;
     std::generate(borders_of_groups.begin(), borders_of_groups.end(), [&] { return E += first_groups_range; });
+    borders_of_groups.emplace_back(1.0e6);
     borders_of_groups.emplace_back(1.5e6);
     borders_of_groups.emplace_back(2.0e6);
 }
@@ -442,8 +462,26 @@ std::vector<std::tuple<double, double, double>> database_read (std::string name)
     return tuples_vector;
 }
 
-void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box) {
+/*void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors,
+                     std::vector<std::tuple<double, double, double>>& sigmas) {
+    double x, y, z, x_d, y_d, z_d;
+    for (unsigned i = 0; i < detectors.size(); i++) {
+        coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
+        double eta = 0;
+        if (z_d <= 1) {
+            for (unsigned j = 0; j < inside_the_box.size(); j++) {
+                coord interaction_point = std::get<0>(inside_the_box[j]);
+                //coordinates_from_tuple(x, y, z, interaction_point);
+                coord tau = vector_creation(interaction_point, detectors[i]);
+                double distance = abs_components(tau);
+                unsigned group = std::get<2>(inside_the_box[i]);
+                double W = ;
+                eta += W * std::exp(-distance) / std::pow(distance, 2) * / std::get<0>(sigmas[group]); //Need to sum it for every group.
+            }
+        } else {
 
-}
+        }
+    }
+}*/
 
 
