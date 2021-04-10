@@ -94,7 +94,6 @@ void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_th
 std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
 std::vector<std::tuple<double, double, double>> sigmas_Pb = std::move(database_read("Pb_sigmas_database"));
 const std::tuple<double, double, double> Sigma_air_2 = sigmas_air[sigmas_air.size() - 1];
-//const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2) + std::get<2>(Sigma_air_2);
 
 std::vector<coord> detectors;
 
@@ -345,6 +344,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<std::tuple<double, double, double>> sigmas;
     std::vector<double> Energy;
     std::array<std::vector<coord>, N> interaction_points;
+    double sigma_2_air_sum = sum_components(Sigma_air_2);
     double x, y, z;
     for(unsigned i = 0; i < points.size(); i++) {
         interaction_points.at(i).emplace_back(points[i]);
@@ -376,7 +376,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
                 A = points[i];
-                direction = beam_direction(sum_components(Sigma_air_2));
+                direction = beam_direction(sigma_2_air_sum);
                 B = definition_of_intersection_points(A, direction);
                 flag = true;
             }
@@ -482,25 +482,3 @@ std::vector<std::tuple<double, double, double>> database_read (std::string name)
     //copy(tuples_vector.begin(), tuples_vector.end(), std::ostream_iterator<std::tuple<double, double, double>>(std::cout, "\n"));
     return tuples_vector;
 }
-
-//void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors) {}
-    /*double x, y, z, x_d, y_d, z_d;
-    for (unsigned i = 0; i < detectors.size(); i++) {
-        coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
-        double eta = 0;
-        if (z_d <= 1) {
-            for (unsigned j = 0; j < inside_the_box.size(); j++) {
-                coord interaction_point = std::get<0>(inside_the_box[j]);
-                coord tau = vector_creation(interaction_point, detectors[i]);
-                double distance = abs_components(tau);
-                unsigned group = std::get<2>(inside_the_box[i]);
-                double W = ; //Стат. вес комптоновского рассеяния для данной группы.
-                eta += W * std::exp(-distance) / std::pow(distance, 2) * / std::get<0>(sigmas[group]); //Need to sum it for every group.
-            }
-        } else {
-
-        }
-    }
-}
-*/
-
