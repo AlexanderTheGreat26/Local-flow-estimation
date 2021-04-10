@@ -45,12 +45,6 @@ const std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //The
                                              std::make_tuple(0, 1, 0, 1),
                                              std::make_tuple(1, 0, 0, -1)};
 
-
-//const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
-//const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);*/
-
-//std::array<std::vector<coord>, N> interaction_points;
-
 const unsigned number_of_energy_groups = 8; //Crunch! Read commented lines in main();
 
 std::vector<double> borders_of_groups(number_of_energy_groups);
@@ -135,7 +129,6 @@ std::vector<coord> polar () {
     }
     return coordinates;
 }
-
 
 //Function transform coordinates of points in polar system to Descart coordinate system.
 std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
