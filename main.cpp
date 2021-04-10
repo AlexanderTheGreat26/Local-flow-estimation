@@ -45,8 +45,7 @@ const std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //The
                                              std::make_tuple(0, 1, 0, 1),
                                              std::make_tuple(1, 0, 0, -1)};
 
-const std::tuple<double, double, double> Sigma_air_2 = std::make_tuple(0.0438, 0.0000003, 0.000387);
-const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2) + std::get<2>(Sigma_air_2);
+
 //const std::tuple<double, double, double> Sigma_Pb_2 = std::make_tuple(0.0349, 0.00523, 0.005);
 //const double Sigma_Pb_sum = std::get<0>(Sigma_Pb_2) + std::get<1>(Sigma_Pb_2) + std::get<2>(Sigma_Pb_2);*/
 
@@ -94,6 +93,8 @@ void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_th
 
 std::vector<std::tuple<double, double, double>> sigmas_air = std::move(database_read("air_sigmas_database"));
 std::vector<std::tuple<double, double, double>> sigmas_Pb = std::move(database_read("Pb_sigmas_database"));
+const std::tuple<double, double, double> Sigma_air_2 = sigmas_air[sigmas_air.size() - 1];
+//const double Sigma_air_sum = std::get<0>(Sigma_air_2) + std::get<1>(Sigma_air_2) + std::get<2>(Sigma_air_2);
 
 std::vector<coord> detectors;
 
@@ -323,7 +324,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     sigma_sum = sum_components(environment);
     p = statistical_weight(environment);
     type = interaction_type(p);
-    double x, x_d, y, y_d, z, z_d;
+    /*double x, x_d, y, y_d, z, z_d;
     if (environment == sigmas_air[group]) {
         for (unsigned i = 0; i < detectors.size(); i++) {
             coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
@@ -335,7 +336,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
         }
     } else {
 
-    }
+    }*/
 }
 
 //The function returns energy steps for every particle.
@@ -375,7 +376,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
                 A = points[i];
-                direction = beam_direction(Sigma_air_sum);
+                direction = beam_direction(sum_components(Sigma_air_2));
                 B = definition_of_intersection_points(A, direction);
                 flag = true;
             }
