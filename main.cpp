@@ -197,7 +197,7 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
                                       "set key box top right",
                                       "set terminal pop",
                                       "set output",
-                                      "replot"};
+                                      "replot", "q"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
     pclose(gp);
@@ -460,6 +460,7 @@ void plot(std::array<std::vector<coord>, N>& points) {
             std::cout << points[i].size() << std::endl;
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
     }
+    fprintf(gp, "%c\n", 'q');
     pclose(gp);
 }
 
@@ -568,7 +569,7 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
                                       "set ylabel \'Cross sections, cm^2/g\'",
                                       "set terminal wxt",
                                       "set output",
-                                      "replot"};
+                                      "replot", "q"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
     pclose(gp);
