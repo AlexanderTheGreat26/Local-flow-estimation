@@ -25,15 +25,22 @@
 #include <iterator>
 
 
-const unsigned N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
+const unsigned N = 1e3; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
 
-double E_min = 2.0e4;
+double E_min = 1.0e5;
 const double E_0 = 2.0e6;
 const double E_e = 0.51099895e6;
 
+const double group_range = 1.0e5;
+
+unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
+
+std::vector<double> borders_of_groups (number_of_energy_groups);
+
+std::array<std::vector<double>, N> Energies;
 
 typedef std::tuple<double, double, double> coord;
 
@@ -44,14 +51,6 @@ const std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //The
                                              std::make_tuple(1, 0, 0, 1),
                                              std::make_tuple(0, 1, 0, 1),
                                              std::make_tuple(1, 0, 0, -1)};
-
-const double group_range = 1.0e4;
-
-unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
-
-std::vector<double> borders_of_groups (number_of_energy_groups);
-
-std::array<std::vector<double>, N> Energies;
 
 std::vector <coord> polar ();
 
@@ -500,8 +499,12 @@ std::vector<longDoubleTuple> database_read (std::string name) {
 //Function returns database received via linear interpolation. It will be useful for presentation of results.
 std::vector<std::tuple<double, double, double>> interpolated_database (std::vector<longDoubleTuple>& default_database) {
     std::vector<std::tuple<double, double, double>> new_data;
-    unsigned i, j;
-    i = j = 0;
+    unsigned i, j, k;
+    for (j = 0; j < default_database.size(); j++)
+        if (std::get<0>(default_database[j]) == borders_of_groups[0])
+            k = j;
+    i = 0;
+    j = k;
     double lb_E, lb_Compton, lb_ph, lb_pp, rb_E, rb_Compton, rb_ph, rb_pp, Compton, ph, pp;
     while (i < borders_of_groups.size()) {
         if (std::get<0>(default_database[j + 1]) - std::get<0>(default_database[j]) == group_range) {
@@ -509,7 +512,7 @@ std::vector<std::tuple<double, double, double>> interpolated_database (std::vect
                                                   std::get<2>(default_database[j]),
                                                   std::get<3>(default_database[j])));
             j++;
-            i = j;
+            i = (k == 0) ? j : j - k;
             continue;
         }
         lb_E = std::get<0>(default_database[j]);
