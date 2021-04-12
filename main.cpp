@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const unsigned N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
+const unsigned N = 5; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -101,12 +101,6 @@ std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
                                 std::make_tuple(0, 0, 1.5),
                                 std::make_tuple(0, -1, 0.5),
                                 std::make_tuple(1, 0, 0.5)};
-
-unsigned crunch = detectors.size();
-
-const unsigned number_of_detectors = crunch;
-
-std::vector<double> sum_eta (std::array<std::vector<double>, number_of_detectors>& inp);
 
 std::vector<std::vector<double>> eta;
 
@@ -384,11 +378,12 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
     double x, y, z;
-    for (unsigned i = 0; i < detectors.size(); i++) {
+    /*for (unsigned i = 0; i < detectors.size(); i++) {
         coordinates_from_tuple(x, y, z, detectors[i]);
         coord tau = vector_creation(particle_coordinate, detectors[i]);
         double distance = abs_components(tau);
-        if (z <= 1) //inside the box
+        //Averadge, sum or max?
+        /*if (z <= 1) //inside the box
             eta[i].emplace_back(p[0].first * std::exp(-distance)/std::pow(distance, 2) *
             std::get<0>(particle_sigma)/((std::get<0>(sigmas_air[group])+std::get<0>(sigmas_air[group+1]))/2.0));
         else
@@ -427,9 +422,9 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 Energy.emplace_back(E);
                 interaction_points.at(i).emplace_back(B);
                 if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1)
-                    flow_detection(sigma_sum, p_air, type, E, "air");
+                    flow_detection(sigma_sum, p_air, type, E, "air", B);
                 else
-                    flow_detection(sigma_sum, p_Pb, type, E, "Pb");
+                    flow_detection(sigma_sum, p_Pb, type, E, "Pb", B);
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_interaction_points(B, direction);
                 cos_ab = cos_t(A, B, C);
@@ -475,8 +470,10 @@ void plot(std::array<std::vector<coord>, N>& points) {
         for (unsigned j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
+            std::cout << x << '\t' << y << '\t' << z << std::endl;
         }
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
+        std::cout << std::endl;
     }
     fprintf(gp, "%c\n", 'q');
     pclose(gp);
@@ -622,6 +619,8 @@ std::string exec(std::string str) {//Just a function returning the answer from T
     return result;
 }
 
-std::vector<double> sum_eta (std::array<std::vector<double>, number_of_detectors>& inp) {
+/* We need to know number of virtual particles which detector registers.
+ * So we have an array with coordinates and array with Energies for every particle.
+ * let's collect their contribution in every detector. */
 
-}
+//TEST THE INTERSECTIONS ALGORITHM!
