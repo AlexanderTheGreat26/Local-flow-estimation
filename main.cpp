@@ -38,7 +38,7 @@ const double E_e = 0.51099895e6;
 
 const double group_range = 1.0e5;
 
-unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
+const unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
 
 std::vector<double> borders_of_groups (number_of_energy_groups);
 
@@ -101,6 +101,14 @@ std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
                                 std::make_tuple(0, 0, 1.5),
                                 std::make_tuple(0, -1, 0.5),
                                 std::make_tuple(1, 0, 0.5)};
+
+unsigned crunch = detectors.size();
+
+const unsigned number_of_detectors = crunch;
+
+std::vector<double> sum_eta (std::array<std::vector<double>, number_of_detectors>& inp);
+
+std::vector<std::vector<double>> eta;
 
 void interpolation_plot (std::string matter, std::vector<double>& E,
                          std::vector<std::tuple<double, double, double>>& sigmas);
@@ -364,7 +372,7 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
 }
 
 void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::string>>& p, std::string& type,
-                     double& E, std::string environment) {
+                     double& E, std::string environment, coord& particle_coordinate) {
     unsigned group = energy_group(E);
     std::vector<std::tuple<double, double, double>> sigma;
     if (environment == "air")
@@ -375,14 +383,23 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     sigma_sum = sum_components(particle_sigma);
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
+    double x, y, z;
+    for (unsigned i = 0; i < detectors.size(); i++) {
+        coordinates_from_tuple(x, y, z, detectors[i]);
+        coord tau = vector_creation(particle_coordinate, detectors[i]);
+        double distance = abs_components(tau);
+        if (z <= 1) //inside the box
+            eta[i].emplace_back(p[0].first * std::exp(-distance)/std::pow(distance, 2) *
+            std::get<0>(particle_sigma)/((std::get<0>(sigmas_air[group])+std::get<0>(sigmas_air[group+1]))/2.0));
+        else
+            eta[i].emplace_back(p[0].first * std::exp(-distance)/std::pow(distance, 2) *
+            std::get<0>(particle_sigma)/((std::get<0>(sigmas_Pb[group])+std::get<0>(sigmas_air[group+1]))/2.0));
+    }
+    //Well, let's take average cross sections in group.
     /*    for (unsigned i = 0; i < detectors.size(); i++) {
             coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
             if (z_d <= 1) {
-                coord tau = vector_creation(particle_coordinate, detectors[i]);
-                doubledistance = abs_components(tau);
-                eta[group] += p[0].first * std::exp(-distance) / std::pow(distance, 2) * (particle_sigma)
-                / std::get<0>(sigmas_air[group]);
-            }
+                }
         }
     } else {
 
@@ -603,4 +620,8 @@ std::string exec(std::string str) {//Just a function returning the answer from T
         result += buffer.data();
     result = result.substr(0, result.length()-1);
     return result;
+}
+
+std::vector<double> sum_eta (std::array<std::vector<double>, number_of_detectors>& inp) {
+
 }
