@@ -278,7 +278,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         y = k*x + a;
         z = h*x + b;
         j++;
-    } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && !std::isnan(x));
+    } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && !std::isnan(x) && j < planes.size());
     return std::make_tuple(x, y, z);
 }
 
@@ -590,8 +590,9 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
     fout.close();
 }
 
-//You can use the function below with the argument "echo $PWD" for saving files in different directories through the string concatenation.
-std::string exec(std::string str) {//const char* cmd){ //Just a function returning the answer from Terminal.
+// You can use the function below with the argument "echo $PWD" for saving files in different
+// directories through the string concatenation.
+std::string exec(std::string str) {//Just a function returning the answer from Terminal.
     const char* cmd = str.c_str();
     std::array<char, 128> buffer;
     std::string result;
