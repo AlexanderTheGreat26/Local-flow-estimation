@@ -23,9 +23,11 @@
 #include <array>
 #include <algorithm>
 #include <iterator>
+#include <memory>
+#include <stdexcept>
 
 
-const unsigned N = 1e3; //Number of points. //Do not use more than 0.5e4 on old computers!
+const unsigned N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -60,13 +62,12 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx);
 
 void data_file_creation (std::string DataType, std::vector<double>& xx, std::vector<coord>& yy);
 
-void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title);
+void default_distribution_plot (std::string& name, std::string& data, std::string xlabel,
+                                std::string ylabel, std::string title);
 
 longDoubleTuple beam_direction (double sigma);
 
 coord coordinates_of_the_interaction (longDoubleTuple& beams);
-
-std::vector<std::pair<double, std::string>> statistical_weight(std::tuple<double, double, double> sigma);
 
 unsigned energy_group(double& E);
 
@@ -78,18 +79,19 @@ void cap();
 
 void plot(std::array<std::vector<coord>, N>& points);
 
-std::vector<std::tuple<coord, double, unsigned >> inside (std::array<std::vector<coord>, N>& points);
-
 std::vector<longDoubleTuple> database_read (std::string name);
 
 double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1, double& x);
 
 std::vector<std::tuple<double, double, double>> interpolated_database (std::vector<longDoubleTuple>& default_database);
 
+std::string exec(std::string str);
 //void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors);
 
-std::vector<std::tuple<double, double, double>> sigmas_air; // = std::move(database_read("air_sigmas_database"));
-std::vector<std::tuple<double, double, double>> sigmas_Pb; // = std::move(database_read("Pb_sigmas_database"));
+std::string path = exec("echo $PWD") + "/../";
+
+std::vector<std::tuple<double, double, double>> sigmas_air;
+std::vector<std::tuple<double, double, double>> sigmas_Pb;
 
 std::tuple<double, double, double> interpolation_for_single_particle (unsigned& group, double& E,
                                                                       std::vector<std::tuple<double, double, double>>& sigmas);
@@ -100,18 +102,20 @@ std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
                                 std::make_tuple(0, -1, 0.5),
                                 std::make_tuple(1, 0, 0.5)};
 
-void interpolation_plot (std::string matter, std::vector<double>& E, std::vector<std::tuple<double, double, double>>& sigmas);
+void interpolation_plot (std::string matter, std::vector<double>& E,
+                         std::vector<std::tuple<double, double, double>>& sigmas);
 
 int main() {
     std::cout << "Databases collecting...\t";
 
+
     borders_of_groups.at(0) = (E_min);
     double E = E_min;
     std::generate(borders_of_groups.begin()+1, borders_of_groups.end(), [&] { return E += group_range; });
-    std::vector<longDoubleTuple> air_data = std::move(database_read("air_sigmas_database"));
+    std::vector<longDoubleTuple> air_data = std::move(database_read(path + "air_sigmas_database"));
     sigmas_air = std::move(interpolated_database(air_data));
     data_file_creation("air", borders_of_groups, sigmas_air);
-    std::vector<longDoubleTuple> Pb_data = std::move(database_read("Pb_sigmas_database"));
+    std::vector<longDoubleTuple> Pb_data = std::move(database_read(path + "Pb_sigmas_database"));
     sigmas_Pb = std::move(interpolated_database(air_data));
     data_file_creation("Pb", borders_of_groups, sigmas_Pb);
 
@@ -188,7 +192,7 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
     if (!gp)
         throw std::runtime_error ("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
-                                      "set out \'" + name + ".svg\'",
+                                      "set out \'" + path + name + ".svg\'",
                                       "set xlabel \'" + xlabel + "\'",
                                       "set ylabel \'" + ylabel + "\'",
                                       "set grid xtics ytics",
@@ -557,7 +561,7 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
-                                      "set out \'Photon Cross Sections for " + matter + ".svg\'",
+                                      "set out \'" + path + "Photon Cross Sections for " + matter + ".svg\'",
                                       "set grid xtics ytics",
                                       "set title \'Photon Cross Sections for " + matter + "\'",
                                       "plot \'" + matter + "\' u 1:2 w lines ti \'Compton Scattering\',\'"
@@ -584,4 +588,18 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
         fout << xx[i] << '\t' << std::get<0>(yy[i]) << '\t' << std::get<1>(yy[i])
              << '\t' << std::get<2>(yy[i]) << '\t' << std::endl;
     fout.close();
+}
+
+//You can use the function below with the argument "echo $PWD" for saving files in different directories through the string concatenation.
+std::string exec(std::string str) {//const char* cmd){ //Just a function returning the answer from Terminal.
+    const char* cmd = str.c_str();
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe)
+        throw std::runtime_error("popen() failed!");
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+        result += buffer.data();
+    result = result.substr(0, result.length()-1);
+    return result;
 }
