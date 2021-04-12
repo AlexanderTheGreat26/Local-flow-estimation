@@ -372,14 +372,13 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     sigma_sum = sum_components(particle_sigma);
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
-    /*doublex, x_d, y, y_d, z, z_d;
-    if (environment == sigmas_air[group]) {
-        for (unsigned i = 0; i < detectors.size(); i++) {
+    /*    for (unsigned i = 0; i < detectors.size(); i++) {
             coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
             if (z_d <= 1) {
                 coord tau = vector_creation(particle_coordinate, detectors[i]);
                 doubledistance = abs_components(tau);
-                eta[group] += p[0].first * std::exp(-distance) / std::pow(distance, 2) * () / std::get<0>(sigmas_air[group]);
+                eta[group] += p[0].first * std::exp(-distance) / std::pow(distance, 2) * (particle_sigma)
+                / std::get<0>(sigmas_air[group]);
             }
         }
     } else {
@@ -559,11 +558,11 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
                                       "set grid xtics ytics",
                                       "set title \'Photon Cross Sections for " + matter + "\'",
                                       "plot \'" + matter + "\' u 1:2 w lines ti \'Compton Scattering\',\'"
-                                      + matter + "\' u 1:2 lw 2 lt rgb 'black' ti \'Compton Scattering nodes\',\'"
+                                      + matter + "\' u 1:2 lw 1 lt rgb 'black' ti \'Compton Scattering nodes\',\'"
                                       + matter + "\' u 1:3 w lines ti \'Photoelectric\',\'"
-                                      + matter + "\' u 1:3 lw 2 lt rgb 'black' ti \'Photoelectric nodes\',\'"
+                                      + matter + "\' u 1:3 lw 1 lt rgb 'black' ti \'Photoelectric nodes\',\'"
                                       + matter + "\' u 1:4 w lines ti \'Pair Production\',\'"
-                                      + matter + "\' u 1:4 lw 2 lt rgb 'black' ti \'Pair Production nodes\'",
+                                      + matter + "\' u 1:4 lw 1 lt rgb 'black' ti \'Pair Production nodes\'",
                                       "set xlabel \'Energy, MeV\'",
                                       "set ylabel \'Cross sections, cm^2/g\'",
                                       "set terminal wxt",
