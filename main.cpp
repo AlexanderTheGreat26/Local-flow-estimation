@@ -25,14 +25,14 @@
 #include <iterator>
 
 
-const unsigned N = 0.5e2; //Number of points. //Do not use more than 0.5e4 on old computers!
+const unsigned N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
 
-double E_min = 1.0e5;
+double E_min = 2.0e4;
 const double E_0 = 2.0e6;
-const double E_e = 0.5110034e6;
+const double E_e = 0.51099895e6;
 
 
 typedef std::tuple<double, double, double> coord;
@@ -45,7 +45,7 @@ const std::vector<longDoubleTuple> planes = {std::make_tuple(0, 0, 1, -1), //The
                                              std::make_tuple(0, 1, 0, 1),
                                              std::make_tuple(1, 0, 0, -1)};
 
-const double group_range = 1.0e5;
+const double group_range = 1.0e4;
 
 unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
 
@@ -107,7 +107,8 @@ int main() {
     std::cout << "Databases collecting...\t";
 
     borders_of_groups.at(0) = (E_min);
-    std::generate(borders_of_groups.begin()+1, borders_of_groups.end(), [&] { return E_min += group_range; });
+    double E = E_min;
+    std::generate(borders_of_groups.begin()+1, borders_of_groups.end(), [&] { return E += group_range; });
     std::vector<longDoubleTuple> air_data = std::move(database_read("air_sigmas_database"));
     sigmas_air = std::move(interpolated_database(air_data));
     data_file_creation("air", borders_of_groups, sigmas_air);
@@ -401,7 +402,6 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
         bool flag = false;
         coord A, C, B;
         longDoubleTuple direction;
-        coord point_of_intersection;
         do {
             if (flag == 1) {
                 E = alpha * E_e;
@@ -416,7 +416,6 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 cos_ab = cos_t(A, B, C);
                 A = B;
                 B = C;
-                coordinates_from_tuple(x, y, z, B);
                 alpha /= 1 + (1 - cos_ab)*alpha;
             } else {
                 A = points[i];
@@ -424,6 +423,8 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 B = definition_of_interaction_points(A, direction);
                 flag = true;
             }
+            coordinates_from_tuple(x, y, z, B);
+            if (std::isnan(alpha)) break;
         } while (type.empty() == 1 || type == "Compton" && E > E_min);
         Energies.at(i) = Energy;
     }
@@ -456,8 +457,6 @@ void plot(std::array<std::vector<coord>, N>& points) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
         }
-        if (points[i].size() != 2)
-            std::cout << points[i].size() << std::endl;
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
     }
     fprintf(gp, "%c\n", 'q');
