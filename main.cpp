@@ -232,21 +232,23 @@ double abs_components(const Tuple& t) {
 }
 
 //Function returns the beam direction and free run length for particle.
+/* Note: always cos_gamma > 0, but it's n*/
 longDoubleTuple beam_direction (double sigma) {
+    //std::cout << sigma << std::endl;
     std::uniform_real_distribution<> dis(0.0, 1.0);
-    double mu = 2 * dis(gen) - 1; //cos(\phi);
-    double L, a, b, d = 10;
+    double L, mu, a, b, cos_psi, cos_gamma, d = 10;
     do {
-        a = 2 * dis(gen) - 1;
-        b = 2 * dis(gen) - 1;
-        d = std::pow(a, 2) + std::pow(b, 2);
-        L = - log(dis(gen)) / sigma;
-    } while (d > 1 || std::isfinite(L) == 0);
-    double cosPsi = a / std::sqrt(d);
-    double sinPsi = b / std::sqrt(d);
-
-    std::cout << abs_components(std::make_tuple(mu, a / std::sqrt(d), b / std::sqrt(d)))  << std::endl;
-    return std::make_tuple(mu, cosPsi, sinPsi, L);
+        mu = 2 * dis(gen) - 1;
+        do {
+            a = 2 * dis(gen) - 1;
+            b = 2 * dis(gen) - 1;
+            d = std::pow(a, 2) + std::pow(b, 2);
+            L = -log(dis(gen)) / sigma;
+        } while (d > 1 || !std::isfinite(L));
+        cos_psi = a / std::sqrt(d);
+        cos_gamma = std::sqrt(1.0 - (std::pow(mu, 2) + std::pow(cos_psi, 2)));
+    } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1 || cos_gamma > 1);
+    return std::make_tuple(cos_gamma, mu, cos_psi, L);
 }
 
 //Function returns vector of beam direction.
@@ -254,7 +256,7 @@ coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     double x = std::get<2>(beam) * std::get<3>(beam);
     double y = std::get<1>(beam) * std::get<3>(beam);
     double z = std::get<0>(beam) * std::get<3>(beam);
-
+    //std::cout << z * std::get<0>(beam) << std::endl;
     return std::make_tuple(x, y, std::abs(z));
 }
 
@@ -426,6 +428,8 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<double> Energy;
     std::array<std::vector<coord>, N> interaction_points;
     double sigma_2_air_sum = sum_components(sigmas_air[sigmas_air.size()-1]);
+    for (int i = 0; i < sigmas_air.size(); i ++)
+    std::cout << std::get<1>(sigmas_air[i]) << std::endl;
     double x, y, z, alpha, E, sigma_sum, cos_ab;
     for (unsigned i = 0; i < points.size(); i++) {
         interaction_points.at(i).emplace_back(points[i]);
@@ -468,7 +472,8 @@ void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term pop",
+    std::vector<std::string> stuff = {"set term pdf",
+                                      "set output \'" + PATH + "test.pdf\'",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
                                       "set xrange [-2:2]",
@@ -488,7 +493,7 @@ void plot(std::array<std::vector<coord>, N>& points) {
         for (unsigned j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
-            std::cout << x << '\t' << y << '\t' << z << std::endl;
+            //std::cout << x << '\t' << y << '\t' << z << std::endl;
         }
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
         std::cout << std::endl;
@@ -542,7 +547,7 @@ std::vector<std::tuple<double, double, double>> interpolated_database (std::vect
     i = 0;
     j = k;
     double lb_E, lb_Compton, lb_ph, lb_pp, rb_E, rb_Compton, rb_ph, rb_pp, Compton, ph, pp;
-    while (i < borders_of_groups.size()) {
+    while (j < default_database.size()) {
         if (std::get<0>(default_database[j + 1]) - std::get<0>(default_database[j]) == group_range) {
             new_data.emplace_back(std::make_tuple(std::get<1>(default_database[j]),
                                                   std::get<2>(default_database[j]),
@@ -565,7 +570,7 @@ std::vector<std::tuple<double, double, double>> interpolated_database (std::vect
             pp = linear_interpolation(lb_E, lb_pp, rb_E, rb_pp, borders_of_groups[i]);
             new_data.emplace_back(std::make_tuple(Compton, ph, pp));
             i++;
-        } while (borders_of_groups[i] < rb_E);
+        } while (borders_of_groups[i] < rb_E && i < borders_of_groups.size());
         j++;
     }
     return new_data;
