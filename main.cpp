@@ -14,7 +14,7 @@
 
 #include <iostream>
 #include <cmath>
-#include <ctime>
+#include <random>
 #include <vector>
 #include <utility>
 #include <fstream>
@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const unsigned N = 5; //Number of points. //Do not use more than 0.5e4 on old computers!
+const unsigned N = 10; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -110,6 +110,12 @@ void interpolation_plot (std::string matter, std::vector<double>& E,
 
 void path_def (std::string& path);
 
+/*template<typename T, std::enable_if_t<std::is_floating_point<T>>* = nullptr>
+T my_rand(T min, T max);*/
+
+std::random_device rd;  //Will be used to obtain a seed for the random number engine
+std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+
 int main() {
     std::cout << "Databases collecting...\t";
 
@@ -129,12 +135,10 @@ int main() {
 
     std::cout << "Computing...\t";
 
-    srand(time(nullptr));
     std::vector<coord> borning = std::move(polar());
     std::vector<coord> born_points = std::move(coordinate_transformation(borning));
-    std::string name1 = "Distribution of " + std::to_string(N) + " points";
-    data_file_creation(name1, born_points);
-    default_distribution_plot(name1, name1, "x", "y", name1);
+    std::string name = "Distribution of " + std::to_string(N) + " points";
+    data_file_creation(name, born_points);
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
 
     std::cout << "Done!" << std::endl;
@@ -142,6 +146,7 @@ int main() {
 
     std::cout << "Plotting...\t";
 
+    default_distribution_plot(name, name, "x", "y", name);
     interpolation_plot("air", borders_of_groups, sigmas_air);
     interpolation_plot("Pb", borders_of_groups, sigmas_air);
     cap();
@@ -158,9 +163,10 @@ int main() {
 //Function returns random points generated in polar coordinate system.
 std::vector<coord> polar () {
     std::vector <coord> coordinates;
+    std::uniform_real_distribution<> dis(0.0, 1.0);
     for (unsigned i = 0; i < N; i++) {
-        double rho = R * std::sqrt(eps * (rand() % (N + 1)));
-        double phi = 2 * pi * eps * (rand() % (N + 1));
+        double rho = R * std::sqrt(dis(gen));
+        double phi = 2 * pi * dis(gen);
         double z = 0;
         coordinates.emplace_back(std::move(std::make_tuple(phi, rho, z)));
     }
@@ -198,6 +204,8 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
         throw std::runtime_error ("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
                                       "set out \'" + PATH + name + ".svg\'",
+                                      "set xrange [-1:1]",
+                                      "set yrange [-1:1]",
                                       "set xlabel \'" + xlabel + "\'",
                                       "set ylabel \'" + ylabel + "\'",
                                       "set grid xtics ytics",
@@ -212,18 +220,32 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
     pclose(gp);
 }
 
+template<typename T, size_t... Is>
+auto abs_components_impl(T const& t, std::index_sequence<Is...>) {
+    return std::sqrt((std::pow(std::get<Is>(t), 2) + ...));
+}
+
+template <class Tuple>
+double abs_components(const Tuple& t) {
+    constexpr auto size = std::tuple_size<Tuple>{};
+    return abs_components_impl(t, std::make_index_sequence<size>{});
+}
+
 //Function returns the beam direction and free run length for particle.
 longDoubleTuple beam_direction (double sigma) {
-    double mu = 2 * eps * (rand() % (N + 1)) - 1; //cos(\phi);
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    double mu = 2 * dis(gen) - 1; //cos(\phi);
     double L, a, b, d = 10;
     do {
-        a = 2 * eps * (rand() % (N + 1)) - 1;
-        b = 2 * eps * (rand() % (N + 1)) - 1;
+        a = 2 * dis(gen) - 1;
+        b = 2 * dis(gen) - 1;
         d = std::pow(a, 2) + std::pow(b, 2);
-        L = - log(eps * (rand() % (N+1))) / sigma;
+        L = - log(dis(gen)) / sigma;
     } while (d > 1 || std::isfinite(L) == 0);
     double cosPsi = a / std::sqrt(d);
     double sinPsi = b / std::sqrt(d);
+
+    std::cout << abs_components(std::make_tuple(mu, a / std::sqrt(d), b / std::sqrt(d)))  << std::endl;
     return std::make_tuple(mu, cosPsi, sinPsi, L);
 }
 
@@ -232,6 +254,7 @@ coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     double x = std::get<2>(beam) * std::get<3>(beam);
     double y = std::get<1>(beam) * std::get<3>(beam);
     double z = std::get<0>(beam) * std::get<3>(beam);
+
     return std::make_tuple(x, y, std::abs(z));
 }
 
@@ -252,16 +275,7 @@ void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
 }
 
 //The templates below will be used for defining the angle between the vectors.
-template<typename T, size_t... Is>
-auto abs_components_impl(T const& t, std::index_sequence<Is...>) {
-    return std::sqrt((std::pow(std::get<Is>(t), 2) + ...));
-}
 
-template <class Tuple>
-double abs_components(const Tuple& t) {
-    constexpr auto size = std::tuple_size<Tuple>{};
-    return abs_components_impl(t, std::make_index_sequence<size>{});
-}
 
 coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& beam) {
     double x, x_init, y, y_init, z, z_init, cos1, cos2, cos3, k, a, h, b, A, B, C, D;
@@ -283,7 +297,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         y = k*x + a;
         z = h*x + b;
         j++;
-    } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && !std::isnan(x) && j < planes.size());
+    } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && j < planes.size());
     return std::make_tuple(x, y, z);
 }
 
@@ -323,7 +337,8 @@ std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<doubl
 //Function return random interaction type.
 std::string interaction_type (std::vector<std::pair<double, std::string>>& p) {
     std::sort(p.begin(), p.end());
-    double gamma = eps*(rand()%(N+1));
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    double gamma = dis(gen);
     return (gamma <= p[0].first) ? p[0].second : (gamma <= p[1].first) ? p[1].second : p[2].second;
 }
 
@@ -607,15 +622,13 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
     fout.close();
 }
 
-// You can use the function below with the argument "echo $PWD" for saving files in different
-// directories through the string concatenation.
-std::string exec(std::string str) {//Just a function returning the answer from Terminal.
+//Just a function for returning the terminal output.
+std::string exec(std::string str) {
     const char* cmd = str.c_str();
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe)
-        throw std::runtime_error("popen() failed!");
+    if (!pipe) throw std::runtime_error("popen() failed!");
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
         result += buffer.data();
     result = result.substr(0, result.length()-1);
