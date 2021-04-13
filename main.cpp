@@ -88,7 +88,7 @@ std::vector<std::tuple<double, double, double>> interpolated_database (std::vect
 std::string exec(std::string str);
 //void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors);
 
-std::string path = exec("echo $PWD") + "/../";
+std::string PATH = exec("echo $PWD");
 
 std::vector<std::tuple<double, double, double>> sigmas_air;
 std::vector<std::tuple<double, double, double>> sigmas_Pb;
@@ -107,17 +107,20 @@ std::vector<std::vector<double>> eta;
 void interpolation_plot (std::string matter, std::vector<double>& E,
                          std::vector<std::tuple<double, double, double>>& sigmas);
 
+
+void path_def (std::string& path);
+
 int main() {
     std::cout << "Databases collecting...\t";
 
-
+    path_def(PATH);
     borders_of_groups.at(0) = (E_min);
     double E = E_min;
     std::generate(borders_of_groups.begin()+1, borders_of_groups.end(), [&] { return E += group_range; });
-    std::vector<longDoubleTuple> air_data = std::move(database_read(path + "air_sigmas_database"));
+    std::vector<longDoubleTuple> air_data = std::move(database_read(PATH + "air_sigmas_database"));
     sigmas_air = std::move(interpolated_database(air_data));
     data_file_creation("air", borders_of_groups, sigmas_air);
-    std::vector<longDoubleTuple> Pb_data = std::move(database_read(path + "Pb_sigmas_database"));
+    std::vector<longDoubleTuple> Pb_data = std::move(database_read(PATH + "Pb_sigmas_database"));
     sigmas_Pb = std::move(interpolated_database(air_data));
     data_file_creation("Pb", borders_of_groups, sigmas_Pb);
 
@@ -194,7 +197,7 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
     if (!gp)
         throw std::runtime_error ("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
-                                      "set out \'" + path + name + ".svg\'",
+                                      "set out \'" + PATH + name + ".svg\'",
                                       "set xlabel \'" + xlabel + "\'",
                                       "set ylabel \'" + ylabel + "\'",
                                       "set grid xtics ytics",
@@ -575,7 +578,7 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
-                                      "set out \'" + path + "Photon Cross Sections for " + matter + ".svg\'",
+                                      "set out \'" + PATH + "Photon Cross Sections for " + matter + ".svg\'",
                                       "set grid xtics ytics",
                                       "set title \'Photon Cross Sections for " + matter + "\'",
                                       "plot \'" + matter + "\' u 1:2 w lines ti \'Compton Scattering\',\'"
@@ -617,6 +620,16 @@ std::string exec(std::string str) {//Just a function returning the answer from T
         result += buffer.data();
     result = result.substr(0, result.length()-1);
     return result;
+}
+
+/* When you use cmake, files located in "cmake-build-debug",
+ * when you use smth like "g++ -o %project_name main.cpp",
+ * files located in root-directory of project.
+ * So this function allows store files in root-directory of project
+ * in both cases described. */
+void path_def (std::string& path) {
+    if (path.find("cmake-build-debug") != std::string::npos)
+        path += "/../";
 }
 
 /* We need to know number of virtual particles which detector registers.
