@@ -287,12 +287,12 @@ void LU_decomposition (std::vector<std::array<double, 3>>& default_matrix,
                        std::vector<std::array<double, 3>>& L,
                        std::vector<std::array<double, 3>>& U) {
     U = default_matrix;
-    for (int i = 0; i < default_matrix.size(); i++) {
+    /*for (int i = 0; i < default_matrix.size(); i++) {
         for (int j = 0; j < default_matrix[i].size(); j++) {
             std::cout << U[i][j] << '\t';
         }
         std::cout << std::endl;
-    }
+    }*/
     std::cout << std::endl;
     for (int i = 0; i < default_matrix.size(); i++) {
         for (int j = 0; j < default_matrix[i].size(); j++) {
@@ -344,7 +344,7 @@ coord solve(std::vector<std::array<double, 3>> matrix, std::vector<double>& free
     return std::make_tuple(x[0], x[1], x[2]);
 }
 
-
+//First of all you need to analise is cos's and axes...
 coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& beam) {
     double x, x_init, y, y_init, z, z_init, cos_alpha, cos_beta, cos_gamma, A, B, C, D;
     cos_alpha = std::get<2>(beam);
@@ -359,6 +359,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         B = std::get<1>(planes[i]);
         C = std::get<2>(planes[i]);
         D = std::get<3>(planes[i]);
+        std::cout << A << '\t' << B << '\t' << C << '\t' << D << std::endl;
         std::vector<std::array<double, 3>> matrix = {{cos_beta, -cos_alpha, 0},
                                                      {0, cos_gamma,  -cos_beta},
                                                      {A,        B,          C}};
@@ -368,8 +369,9 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         intersection_coordinate = std::move(solve(matrix, right_part));
         coordinates_from_tuple(x, y, z, intersection_coordinate);
         i++;
-        if ((x >= -1 && x <= 1 && y >= -1 && y <= 1 && z > 0 && z <= 1)) break;
-    } while (i < planes.size() && (x == x_init || y == y_init || z == z_init));
+        if  (x == x_init || y == y_init || z == z_init) continue;
+    } while (i < planes.size() && (std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1));
+
     return intersection_coordinate;
 }
 
@@ -389,7 +391,7 @@ coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& b
     coord trajectory;
     //std::cout << x_init << '\t' << y_init << '\t' << z_init << std::endl;
     // First of all we check if current frame of reference is inside the sarcophagus.
-    if (x_init >= -1 && x_init <= 1 && y_init >= -1 && y_init <= 1 && z_init >= 0 && z_init <= 1) {
+    if (std::abs(x_init) <= 1 && std::abs(y_init) <= 1 && z_init >= 0 && z_init <= 1) {
         coord intersection_point = std::move(definition_of_intersection_points(initial_point, beam));
         trajectory = std::move(vector_creation(initial_point, intersection_point));
         // Then, if the distance from one of the planes in this direction is bigger the free run length,
@@ -405,7 +407,7 @@ coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& b
         // if particle moves towards the inner walls of the sarcophagus
         // and the free run length lets her get to the sarcophagus we define the interaction point
         // like a point of sarcophagus and trajectory intersection.
-        if (x >= -1 && x <= 1 && y >= -1 && y <= 1 && z <= 1 &&
+        if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1 &&
         std::get<3>(beam) > abs_components(trajectory))
             return std::move(definition_of_intersection_points(interaction_point, beam));
         else // Otherwise we just define new frame of reference in Pb.
@@ -529,7 +531,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                     flow_detection(sigma_sum, p_air, type, E, "air", B);
                 else
                     flow_detection(sigma_sum, p_Pb, type, E, "Pb", B);
-                //std::cout << x << '\t' << y << '\t' << z << std::endl;
+                std::cout << x << '\t' << y << '\t' << z << std::endl;
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_interaction_points(B, direction);
                 cos_ab = cos_t(A, B, C);
@@ -542,8 +544,8 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 B = definition_of_interaction_points(A, direction);
                 flag = true;
             }
-            coordinates_from_tuple(x, y, z, B);
             if (std::isnan(alpha)) break;
+            coordinates_from_tuple(x, y, z, B);
         } while (type.empty() == 1 || type == "Compton" && E > E_min);
         Energies.at(i) = Energy;
     }
@@ -560,12 +562,14 @@ void plot(std::array<std::vector<coord>, N>& points) {
                                       "set term wxt",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
-                                      "set xrange [-2:2]",
-                                      "set yrange [-2:2]",
-                                      "set zrange [0:5]",
+                                      "set xrange [-3:3]",
+                                      "set yrange [-3:3]",
+                                      "set zrange [0:3]",
                                       "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
+                                      "splot \'" + PATH + "Distribution of " + std::to_string(N) +" points\' u " +
+                                                                                                  "1:2:3 lw 1 lt rgb 'red' ti \'Nodes\'",
                                       "splot \'" + PATH + "detectors\' u 1:2:3 lw 3 lt rgb 'black'",
                                       "splot \'" + PATH + "cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
                                       "splot \'" + PATH + "cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
