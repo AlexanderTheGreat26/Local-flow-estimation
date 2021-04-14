@@ -6,12 +6,12 @@
 
 #IncludeRegexTransform: 
 
-/home/alexander/CLionProjects/Local-flow-estimation/main.cpp
+/home/alexander/Local-flow-estimation/main.cpp
 iostream
 -
 cmath
 -
-ctime
+random
 -
 vector
 -
@@ -25,12 +25,12 @@ tuple
 -
 array
 -
+algorithm
+-
+iterator
+-
 memory
 -
 stdexcept
--
-utility
--
-algorithm
 -
 

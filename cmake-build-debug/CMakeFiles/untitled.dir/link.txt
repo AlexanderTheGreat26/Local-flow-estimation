@@ -1,1 +1,1 @@
-/usr/bin/c++   -std=c++14 -fopenmp -g   CMakeFiles/untitled.dir/main.cpp.o  -o untitled 
+/usr/bin/c++  -std=c++14 -fopenmp -g CMakeFiles/untitled.dir/main.cpp.o -o untitled 

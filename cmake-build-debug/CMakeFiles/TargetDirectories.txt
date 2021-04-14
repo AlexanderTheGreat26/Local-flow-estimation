@@ -1,3 +1,3 @@
-/home/alexander/CLionProjects/Local-flow-estimation/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/alexander/CLionProjects/Local-flow-estimation/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/alexander/CLionProjects/Local-flow-estimation/cmake-build-debug/CMakeFiles/untitled.dir
+/home/alexander/Local-flow-estimation/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/alexander/Local-flow-estimation/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/alexander/Local-flow-estimation/cmake-build-debug/CMakeFiles/untitled.dir

@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const unsigned N = 10; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 2; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -38,7 +38,7 @@ const double E_e = 0.51099895e6;
 
 const double group_range = 1.0e5;
 
-const unsigned number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
+const int number_of_energy_groups = (E_0 - E_min) / group_range + 1; //Well, it's not safe I know.
 
 std::vector<double> borders_of_groups (number_of_energy_groups);
 
@@ -69,7 +69,7 @@ longDoubleTuple beam_direction (double sigma);
 
 coord coordinates_of_the_interaction (longDoubleTuple& beams);
 
-unsigned energy_group(double& E);
+int energy_group(double& E);
 
 std::array<std::vector<coord>, N> interactions (std::vector<coord>& points);
 
@@ -86,14 +86,14 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
 std::vector<std::tuple<double, double, double>> interpolated_database (std::vector<longDoubleTuple>& default_database);
 
 std::string exec(std::string str);
-//void flow_detection (std::vector<std::tuple<coord, double, unsigned>>& inside_the_box, std::vector<coord>& detectors);
+//void flow_detection (std::vector<std::tuple<coord, double, int>>& inside_the_box, std::vector<coord>& detectors);
 
 std::string PATH = exec("echo $PWD");
 
 std::vector<std::tuple<double, double, double>> sigmas_air;
 std::vector<std::tuple<double, double, double>> sigmas_Pb;
 
-std::tuple<double, double, double> interpolation_for_single_particle (unsigned& group, double& E,
+std::tuple<double, double, double> interpolation_for_single_particle (int& group, double& E,
                                                                       std::vector<std::tuple<double, double, double>>& sigmas);
 
 std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
@@ -164,7 +164,7 @@ int main() {
 std::vector<coord> polar () {
     std::vector <coord> coordinates;
     std::uniform_real_distribution<> dis(0.0, 1.0);
-    for (unsigned i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         double rho = R * std::sqrt(dis(gen));
         double phi = 2 * pi * dis(gen);
         double z = 0;
@@ -176,7 +176,7 @@ std::vector<coord> polar () {
 //Function transform coordinates of points in polar system to Descart coordinate system.
 std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     std::vector<coord> xOy;
-    for(unsigned i = 0; i < coords.size(); i++) {
+    for(int i = 0; i < coords.size(); i++) {
         double phi = std::get<0>(coords[i]);
         double rho = std::get<1>(coords[i]);
         double x = rho * cos(phi);
@@ -190,9 +190,10 @@ std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
 void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
-    fout.open(DataType);
-    for(unsigned i = 0; i < xx.size(); i++)
-        fout << std::get<0>(xx[i]) << '\t' << std::get<1>(xx[i]) << '\t' << std::get<2>(xx[i]) << '\t' << std::endl;
+    fout.open(PATH + DataType);
+    for(int i = 0; i < xx.size(); i++)
+        fout << std::get<0>(xx[i]) << '\t' << std::get<1>(xx[i]) << '\t'
+                                << std::get<2>(xx[i]) << '\t' << std::endl;
     fout.close();
 }
 
@@ -248,6 +249,7 @@ longDoubleTuple beam_direction (double sigma) {
         cos_psi = a / std::sqrt(d);
         cos_gamma = std::sqrt(1.0 - (std::pow(mu, 2) + std::pow(cos_psi, 2)));
     } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1 || cos_gamma > 1);
+    //std::cout << cos_gamma << std::endl;
     return std::make_tuple(cos_gamma, mu, cos_psi, L);
 }
 
@@ -256,8 +258,8 @@ coord coordinates_of_the_interaction (longDoubleTuple& beam) {
     double x = std::get<2>(beam) * std::get<3>(beam);
     double y = std::get<1>(beam) * std::get<3>(beam);
     double z = std::get<0>(beam) * std::get<3>(beam);
-    //std::cout << z * std::get<0>(beam) << std::endl;
-    return std::make_tuple(x, y, std::abs(z));
+    //Разыгрывай по флагу знак.
+    return std::make_tuple(x, y, z);
 }
 
 //Just a function for sarcophagus creation.
@@ -279,28 +281,102 @@ void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
 //The templates below will be used for defining the angle between the vectors.
 
 
+//The functions bellow using for solving systems of linear equations via LU-decomposition.
+void LU_decomposition (std::vector<std::array<double, 3>>& default_matrix,
+                       std::vector<std::array<double, 3>>& L,
+                       std::vector<std::array<double, 3>>& U) {
+    U = default_matrix;
+    for (int i = 0; i < default_matrix.size(); i++) {
+        for (int j = 0; j < default_matrix[i].size(); j++) {
+            std::cout << U[i][j] << '\t';
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < default_matrix.size(); i++) {
+        for (int j = 0; j < default_matrix[i].size(); j++) {
+            U.at(i).at(j) = 0;
+            L.at(i).at(j) = 0;
+        }
+        L.at(i).at(i) = 1;
+    }
+    for (int i = 0; i < default_matrix.size(); i++) {
+        for (int j = 0; j < default_matrix[i].size(); j++) {
+            double sum = 0;
+            for (int k = 0; k < i; k++)
+                sum += L[i][k]*U[k][j];
+            if (i <= j)
+                U.at(i).at(j) = default_matrix[i][j] - sum;
+            else
+                L.at(i).at(j) = (default_matrix[i][j] - sum) / U[j][j];
+
+        }
+    }
+}
+
+std::vector<double> direct (std::vector<std::array<double, 3>>& L, std::vector<double>& b) {
+    std::vector<double> y;
+    for (int i = 0; i < L.size(); i++) {
+        double sum = 0;
+        for (int j = 0; j < i; j++)
+            sum += L[i][j] * y[j];
+        y.emplace_back(b[i] - sum);
+    }
+    return y;
+}
+
+std::vector<double> reverse (std::vector<std::array<double, 3>>& U, std::vector<double>& y) {
+    std::vector<double> x = y;
+    for (int i = y.size()-1; i >= 0; i--) {
+        for (int j = i + 1; j < y.size(); j++)
+            x.at(i) -= U[i][j] * x[j];
+        x.at(i) /= U[i][i];
+    }
+    return x;
+}
+
+coord solve(std::vector<std::array<double, 3>> matrix, std::vector<double>& free_numbers_column) {
+    std::vector<std::array<double, 3>> L(3), U(3);
+    LU_decomposition(matrix, L, U);
+    std::vector<double> straight_run_results = std::move(direct(L, free_numbers_column));
+    std::vector<double> x = std::move(reverse(U, straight_run_results));
+    return std::make_tuple(x[0], x[1], x[2]);
+}
+
+
 coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& beam) {
-    double x, x_init, y, y_init, z, z_init, cos1, cos2, cos3, k, a, h, b, A, B, C, D;
+    double x, x_init, y, y_init, z, z_init, cos_alpha, cos_beta, cos_gamma, A, B, C, D;
+    cos_alpha = std::get<2>(beam);
+    cos_beta = std::get<1>(beam);
+    cos_gamma = std::get<0>(beam);
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
-    cos1 = std::get<2>(beam);
-    cos2 = std::get<1>(beam);
-    cos3 = std::get<0>(beam);
-    k = cos2 / cos1;
-    a = y_init - k * x_init;
-    h = cos3 / cos1;
-    b = z_init - h * x_init;
-    unsigned j = 0;
+    coord intersection_coordinate;
+    //std::cout << x_init << '\t' << y_init <<'\t' <<z_init << std::endl;
+    int i = 0;
     do {
-        A = std::get<0>(planes[j]);
-        B = std::get<1>(planes[j]);
-        C = std::get<2>(planes[j]);
-        D = std::get<3>(planes[j]);
-        x = -(B*a + C*b - D) / (A + B*k + C*h);
-        y = k*x + a;
-        z = h*x + b;
-        j++;
-    } while (!(x >= -1 && x <= 1 && y >= -1 && y <= 1 && z >= 0 && z <= 1) && j < planes.size());
-    return std::make_tuple(x, y, z);
+        A = std::get<0>(planes[i]);
+        B = std::get<1>(planes[i]);
+        C = std::get<2>(planes[i]);
+        D = std::get<3>(planes[i]);
+        std::vector<std::array<double, 3>> matrix = {{cos_beta, -cos_alpha, 0},
+                                                     {0, cos_gamma,  -cos_beta},
+                                                     {A,        B,          C}};
+        std::vector<double> right_part = {x_init*cos_beta - y_init*cos_alpha,
+                                          y_init*cos_gamma - z_init*cos_beta,
+                                          -D};
+        intersection_coordinate = std::move(solve(matrix, right_part));
+        coordinates_from_tuple(x, y, z, intersection_coordinate);
+        i++;
+        if ((x >= -1 && x <= 1 && y >= -1 && y <= 1 && z > 0 && z <= 1)) break;
+    } while (i < planes.size() && (x == x_init || y == y_init || z == z_init));
+    return intersection_coordinate;
+}
+
+//Just a function for creating vector with two points.
+coord vector_creation (coord& A, coord& B) {
+    return std::make_tuple(std::get<0>(B) - std::get<0>(A),
+                           std::get<1>(B) - std::get<1>(A),
+                           std::get<2>(B) - std::get<2>(A));
 }
 
 /* Function returns coordinate of interaction for particles.
@@ -309,18 +385,29 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
 coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& beam) {
     double x, x_init, y, y_init, z, z_init;
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
-    if (x_init > -1 && x_init < 1 && y_init > -1 && y_init < 1 && z_init >= 0 && z_init < 1) {
-        coord intersection_point = std::move(definition_of_intersection_points(initial_point, beam));;
-        if (std::get<3>(beam) < abs_components(intersection_point))
+    coord trajectory;
+    //std::cout << x_init << '\t' << y_init << '\t' << z_init << std::endl;
+    // First of all we check if current frame of reference is inside the sarcophagus.
+    if (x_init >= -1 && x_init <= 1 && y_init >= -1 && y_init <= 1 && z_init >= 0 && z_init <= 1) {
+        coord intersection_point = std::move(definition_of_intersection_points(initial_point, beam));
+        trajectory = std::move(vector_creation(initial_point, intersection_point));
+        // Then, if the distance from one of the planes in this direction is bigger the free run length,
+        // we will use last.
+        if (std::get<3>(beam) < abs_components(trajectory))
             return std::move(coordinates_of_the_interaction(beam));
         else
             return intersection_point;
-    } else {
+    } else { // Otherwise, when the current frame of reference inside the Pb, we have two ways too:
         coord interaction_point = std::move(coordinates_of_the_interaction(beam));
+        trajectory = std::move(vector_creation(initial_point, interaction_point));
         coordinates_from_tuple(x, y, z, interaction_point);
-        if (x >= -1 && x <= 1 && y >= -1 && y <= 1 && z <= 1) {
+        // if particle moves towards the inner walls of the sarcophagus
+        // and the free run length lets her get to the sarcophagus we define the interaction point
+        // like a point of sarcophagus and trajectory intersection.
+        if (x >= -1 && x <= 1 && y >= -1 && y <= 1 && z <= 1 &&
+        std::get<3>(beam) > abs_components(trajectory))
             return std::move(definition_of_intersection_points(interaction_point, beam));
-        } else
+        else // Otherwise we just define new frame of reference in Pb.
             return interaction_point;
     }
 }
@@ -355,12 +442,7 @@ double sum_components(const Tuple& t) {
     return sum_components_impl(t, std::make_index_sequence<size>{});
 }
 
-//Just a function for creating vector with two points.
-coord vector_creation (coord& A, coord& B) {
-    return std::make_tuple(std::get<0>(B) - std::get<0>(A),
-                           std::get<1>(B) - std::get<1>(A),
-                           std::get<2>(B) - std::get<2>(A));
-}
+
 
 template<typename T, size_t... Is>
 auto scalar_prod_components_impl(T const& t, T const& t1, std::index_sequence<Is...>, std::index_sequence<Is...>) {
@@ -387,7 +469,7 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
 
 void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::string>>& p, std::string& type,
                      double& E, std::string environment, coord& particle_coordinate) {
-    unsigned group = energy_group(E);
+    int group = energy_group(E);
     std::vector<std::tuple<double, double, double>> sigma;
     if (environment == "air")
         sigma = sigmas_air;
@@ -398,7 +480,8 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
     double x, y, z;
-    /*for (unsigned i = 0; i < detectors.size(); i++) {
+    coordinates_from_tuple(x, y, z, particle_coordinate);
+    /*for (int i = 0; i < detectors.size(); i++) {
         coordinates_from_tuple(x, y, z, detectors[i]);
         coord tau = vector_creation(particle_coordinate, detectors[i]);
         double distance = abs_components(tau);
@@ -411,7 +494,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
             std::get<0>(particle_sigma)/((std::get<0>(sigmas_Pb[group])+std::get<0>(sigmas_air[group+1]))/2.0));
     }
     //Well, let's take average cross sections in group.
-    /*    for (unsigned i = 0; i < detectors.size(); i++) {
+    /*    for (int i = 0; i < detectors.size(); i++) {
             coordinates_from_tuple(x_d, y_d, z_d, detectors[i]);
             if (z_d <= 1) {
                 }
@@ -428,10 +511,8 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
     std::vector<double> Energy;
     std::array<std::vector<coord>, N> interaction_points;
     double sigma_2_air_sum = sum_components(sigmas_air[sigmas_air.size()-1]);
-    for (int i = 0; i < sigmas_air.size(); i ++)
-    std::cout << std::get<1>(sigmas_air[i]) << std::endl;
     double x, y, z, alpha, E, sigma_sum, cos_ab;
-    for (unsigned i = 0; i < points.size(); i++) {
+    for (int i = 0; i < points.size(); i++) {
         interaction_points.at(i).emplace_back(points[i]);
         alpha = E_0 / E_e;
         std::string type;
@@ -447,6 +528,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                     flow_detection(sigma_sum, p_air, type, E, "air", B);
                 else
                     flow_detection(sigma_sum, p_Pb, type, E, "Pb", B);
+                //std::cout << x << '\t' << y << '\t' << z << std::endl;
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_interaction_points(B, direction);
                 cos_ab = cos_t(A, B, C);
@@ -489,8 +571,8 @@ void plot(std::array<std::vector<coord>, N>& points) {
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
     double x, y, z;
-    for (unsigned i = 0; i < N; i++) {
-        for (unsigned j = 0; j < points[i].size(); j++) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
             //std::cout << x << '\t' << y << '\t' << z << std::endl;
@@ -504,8 +586,8 @@ void plot(std::array<std::vector<coord>, N>& points) {
 
 
 //Function return the number of energy group for particle.
-unsigned energy_group(double& E) {
-    for (unsigned i = borders_of_groups.size() - 1; i > 0; i--)
+int energy_group(double& E) {
+    for (int i = borders_of_groups.size() - 1; i > 0; i--)
         if (E >= borders_of_groups[i - 1] && E <= borders_of_groups[i])
             return i - 1;
 }
@@ -540,7 +622,7 @@ std::vector<longDoubleTuple> database_read (std::string name) {
 //Function returns database received via linear interpolation. It will be useful for presentation of results.
 std::vector<std::tuple<double, double, double>> interpolated_database (std::vector<longDoubleTuple>& default_database) {
     std::vector<std::tuple<double, double, double>> new_data;
-    unsigned i, j, k;
+    int i, j, k;
     for (j = 0; j < default_database.size(); j++)
         if (std::get<0>(default_database[j]) == borders_of_groups[0])
             k = j;
@@ -577,7 +659,7 @@ std::vector<std::tuple<double, double, double>> interpolated_database (std::vect
 }
 
 //The group determines by left border. The function returns interpolated interaction cross sections for single particle.
-std::tuple<double, double, double> interpolation_for_single_particle (unsigned& group, double& E,
+std::tuple<double, double, double> interpolation_for_single_particle (int& group, double& E,
                                                                       std::vector<std::tuple<double, double, double>>& sigmas) {
     double lb_E = borders_of_groups[group];
     double lb_Compton = std::get<0>(sigmas[group]);
@@ -621,7 +703,7 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
     fout.open(DataType);
-    for(unsigned i = 0; i < xx.size(); i++)
+    for(int i = 0; i < xx.size(); i++)
         fout << xx[i] << '\t' << std::get<0>(yy[i]) << '\t' << std::get<1>(yy[i])
              << '\t' << std::get<2>(yy[i]) << '\t' << std::endl;
     fout.close();
@@ -649,6 +731,10 @@ void path_def (std::string& path) {
     if (path.find("cmake-build-debug") != std::string::npos)
         path += "/../";
 }
+
+
+
+//std::array<std::array<double>,
 
 /* We need to know number of virtual particles which detector registers.
  * So we have an array with coordinates and array with Energies for every particle.
