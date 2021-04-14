@@ -248,8 +248,8 @@ longDoubleTuple beam_direction (double sigma) {
         } while (d > 1 || !std::isfinite(L));
         cos_psi = a / std::sqrt(d);
         cos_gamma = std::sqrt(1.0 - (std::pow(mu, 2) + std::pow(cos_psi, 2)));
-    } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1 || cos_gamma > 1);
-    //std::cout << cos_gamma << std::endl;
+    } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1); // || cos_gamma > 1);
+    std::cout << cos_gamma << std::endl;
     return std::make_tuple(cos_gamma, mu, cos_psi, L);
 }
 
