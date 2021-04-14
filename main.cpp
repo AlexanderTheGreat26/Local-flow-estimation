@@ -200,6 +200,7 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx) {
 //Function plots points of borning. It shows the initial distribution.
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title) {
     //if you have problems with ".svg", you have to change ".svg" to ".pdf" in strings bellow.
+    //std::cout << PATH + data << std::endl;
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error ("Error opening pipe to GNUplot.");
@@ -211,7 +212,7 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
                                       "set ylabel \'" + ylabel + "\'",
                                       "set grid xtics ytics",
                                       "set title \'" + title + "\'",
-                                      "plot \'" + data + "\' using 1:2 lw 1 lt rgb 'orange' ti \'Nodes\'",
+                                      "plot \'" + PATH + data + "\' using 1:2 lw 1 lt rgb 'orange' ti \'Nodes\'",
                                       "set key box top right",
                                       "set terminal pop",
                                       "set output",
@@ -248,7 +249,7 @@ longDoubleTuple beam_direction (double sigma) {
         } while (d > 1 || !std::isfinite(L));
         cos_psi = a / std::sqrt(d);
         cos_gamma = std::sqrt(1.0 - (std::pow(mu, 2) + std::pow(cos_psi, 2)));
-    } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1 || cos_gamma > 1);
+    } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1);
     //std::cout << cos_gamma << std::endl;
     return std::make_tuple(cos_gamma, mu, cos_psi, L);
 }
@@ -554,8 +555,9 @@ void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term pdf",
-                                      "set output \'" + PATH + "test.pdf\'",
+    std::vector<std::string> stuff = {//"set term pdf",
+                                      //"set output \'" + PATH + "test.pdf\'",
+                                      "set term wxt",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
                                       "set xrange [-2:2]",
@@ -564,9 +566,9 @@ void plot(std::array<std::vector<coord>, N>& points) {
                                       "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
-                                      "splot \'detectors\' u 1:2:3 lw 3 lt rgb 'black'",
-                                      "splot \'cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
-                                      "splot \'cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
+                                      "splot \'" + PATH + "detectors\' u 1:2:3 lw 3 lt rgb 'black'",
+                                      "splot \'" + PATH + "cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
+                                      "splot \'" + PATH + "cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
                                       "splot '-' u 1:2:3 w lines"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
@@ -702,6 +704,7 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
 void data_file_creation (std::string DataType, std::vector<double>& xx, std::vector<coord>& yy) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
+    DataType += PATH;
     fout.open(DataType);
     for(int i = 0; i < xx.size(); i++)
         fout << xx[i] << '\t' << std::get<0>(yy[i]) << '\t' << std::get<1>(yy[i])
