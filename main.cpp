@@ -369,9 +369,13 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         intersection_coordinate = std::move(solve(matrix, right_part));
         coordinates_from_tuple(x, y, z, intersection_coordinate);
         i++;
-        if (x == x_init || y == y_init || z == z_init) continue;
+        if ((x == x_init || y == y_init || z == z_init) && i < planes.size()) continue;
     } while (i < planes.size() && !(std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1));
-    //std::cout << x << '\t' << y <<'\t' <<z << std::endl;
+    if (x == x_init || y == y_init || z == z_init) //There used "or", because comparing two doubles is not safe.
+        //We exclude some cases, but we need to have more the 1e6 particles for have one of them.
+       ///return std::make_tuple(cos_alpha, cos_beta, cos_gamma); //Well, then we have to compare it with beam.
+        return std::make_tuple(0.0, 0.0, 0.0);
+        //If the beam directed outside the box then go to another case.
     return intersection_coordinate;
 }
 
@@ -404,16 +408,50 @@ double vector_cos (coord& a, coord& b) {
     return scalar_prod_components(a, b) / (abs_components(a) * abs_components(b));
 }
 
+template<typename T, size_t... Is>
+auto sum_components_impl(T const& t, std::index_sequence<Is...>) {
+    return (std::get<Is>(t) + ...);
+}
+
+template <class Tuple>
+double sum_components(const Tuple& t) {
+    constexpr auto size = std::tuple_size<Tuple>{};
+    return sum_components_impl(t, std::make_index_sequence<size>{});
+}
+
+coord vector_offset (coord& frame_of_reference, coord& vector) {
+    return std::make_tuple(std::get<0>(frame_of_reference) + std::get<0>(vector),
+                           std::get<1>(frame_of_reference) + std::get<1>(vector),
+                           std::get<2>(frame_of_reference) + std::get<2>(vector));
+}
+
 /* Function returns coordinate of interaction for particles.
  * If it interaction outside the sarcophagus functions returns the point of intersection with one of the planes,
  * otherwise it returns the interaction point in air. */
 coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& direction) {
     double x, x_init, y, y_init, z, z_init;
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
-    coord trajectory;
-    if (std::abs(x_init) <= 1 && std::abs(y_init) <= 1 && z_init >= 0 && z_init <= 1) {
+    coord distance = definition_of_intersection_points(initial_point, direction);
+    coord trajectory = coordinates_of_the_interaction(direction);
+    coord free_run = vector_offset(initial_point, trajectory);
+    if (std::abs(x_init) < 1 && std::abs(y_init) < 1 && z_init >= 0 && z_init < 1) {
+        if (abs_components(distance) < abs_components(free_run))
+            return distance;
+        else
+            return free_run;
+    } else {
+        if (definition_of_intersection_points(initial_point, direction) == std::make_tuple(0, 0, 0))
+            return free_run;
+        else {
+            std::cout << "Distance:\t" << std::get<0>(distance)  << '\t' << std::get<1>(distance) << '\t' << std::get<2>(distance) << std::endl;
+            return distance;
+        }
+    }
+}
+    /*if (std::abs(x_init) < 1 && std::abs(y_init) < 1 && z_init >= 0 && z_init < 1) {
         coord intersection_point = std::move(definition_of_intersection_points(initial_point, direction));
-        trajectory = std::move(vector_creation(initial_point, intersection_point));
+
+        //trajectory = std::move(vector_creation(initial_point, intersection_point));
         coord default_beam = coordinates_of_the_interaction(direction);
         coord beam_offset = vector_creation(initial_point, default_beam);
         if (abs_components(beam_offset) < abs_components(trajectory))
@@ -425,15 +463,15 @@ coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& d
         coord beam_offset = vector_creation(initial_point, default_beam);
         trajectory = std::move(vector_creation(initial_point, beam_offset));
         coordinates_from_tuple(x, y, z, beam_offset);
-        coord outer_normal = normal_vector(planes[0]);
-        if (vector_cos(default_beam, outer_normal) > 0)
-
-        if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1 && abs_components(beam_offset) < abs_components(trajectory))
-            return std::move(definition_of_intersection_points(beam_offset, direction));
-        else // Otherwise we just define new frame of reference in Pb.
+        if (definition_of_intersection_points(initial_point, direction) == std::make_tuple(0.0, 0.0, 0.0))
             return beam_offset;
-    }
-}
+        else
+            if (abs_components(beam_offset) < abs_components(trajectory))
+                return beam_offset;
+            else
+                return std::move(definition_of_intersection_points(beam_offset, direction));
+            }
+}*/
 
 //Function returns the probability for types of interaction for environment (which defines with argument).
 std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<double, double, double>& sigma,
@@ -452,17 +490,6 @@ std::string interaction_type (std::vector<std::pair<double, std::string>>& p) {
     std::uniform_real_distribution<> dis(0.0, 1.0);
     double gamma = dis(gen);
     return (gamma <= p[0].first) ? p[0].second : (gamma <= p[1].first) ? p[1].second : p[2].second;
-}
-
-template<typename T, size_t... Is>
-auto sum_components_impl(T const& t, std::index_sequence<Is...>) {
-    return (std::get<Is>(t) + ...);
-}
-
-template <class Tuple>
-double sum_components(const Tuple& t) {
-    constexpr auto size = std::tuple_size<Tuple>{};
-    return sum_components_impl(t, std::make_index_sequence<size>{});
 }
 
 //Function returns cos(a, b), where a, b -- vectors;
