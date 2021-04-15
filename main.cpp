@@ -193,7 +193,7 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     fout.open(PATH + DataType);
     for(int i = 0; i < xx.size(); i++)
         fout << std::get<0>(xx[i]) << '\t' << std::get<1>(xx[i]) << '\t'
-                                << std::get<2>(xx[i]) << '\t' << std::endl;
+             << std::get<2>(xx[i]) << '\t' << std::endl;
     fout.close();
 }
 
@@ -331,7 +331,7 @@ std::vector<double> reverse (std::vector<std::array<double, 3>>& U, std::vector<
     for (int i = y.size()-1; i >= 0; i--) {
         for (int j = i + 1; j < y.size(); j++)
             x.at(i) -= U[i][j] * x[j];
-        x.at(i) /= U[i][i];
+        x.at(i) /= U[i][i];//
     }
     return x;
 }
@@ -352,7 +352,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
     cos_gamma = std::get<0>(beam);
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
     coord intersection_coordinate;
-    //std::cout << x_init << '\t' << y_init <<'\t' <<z_init << std::endl;
+    std::cout << x_init << '\t' << y_init <<'\t' <<z_init << std::endl;
     int i = 0;
     do {
         A = std::get<0>(planes[i]);
@@ -368,7 +368,7 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
                                           -D};
         intersection_coordinate = std::move(solve(matrix, right_part));
         coordinates_from_tuple(x, y, z, intersection_coordinate);
-        i++;
+        i++;//
         if  (x == x_init || y == y_init || z == z_init) continue;
     } while (i < planes.size() && (std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1));
 
@@ -408,7 +408,7 @@ coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& b
         // and the free run length lets her get to the sarcophagus we define the interaction point
         // like a point of sarcophagus and trajectory intersection.
         if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1 &&
-        std::get<3>(beam) > abs_components(trajectory))
+            std::get<3>(beam) > abs_components(trajectory))
             return std::move(definition_of_intersection_points(interaction_point, beam));
         else // Otherwise we just define new frame of reference in Pb.
             return interaction_point;
@@ -558,22 +558,22 @@ void plot(std::array<std::vector<coord>, N>& points) {
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {//"set term pdf",
-                                      //"set output \'" + PATH + "test.pdf\'",
-                                      "set term wxt",
-                                      "set multiplot",
-                                      "set grid xtics ytics ztics",
-                                      "set xrange [-3:3]",
-                                      "set yrange [-3:3]",
-                                      "set zrange [0:3]",
-                                      "set key off",
-                                      "set ticslevel 0",
-                                      "set border 4095",
-                                      "splot \'" + PATH + "Distribution of " + std::to_string(N) +" points\' u " +
-                                                                                                  "1:2:3 lw 1 lt rgb 'red' ti \'Nodes\'",
-                                      "splot \'" + PATH + "detectors\' u 1:2:3 lw 3 lt rgb 'black'",
-                                      "splot \'" + PATH + "cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
-                                      "splot \'" + PATH + "cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
-                                      "splot '-' u 1:2:3 w lines"};
+            //"set output \'" + PATH + "test.pdf\'",
+            "set term wxt",
+            "set multiplot",
+            "set grid xtics ytics ztics",
+            "set xrange [-3:3]",
+            "set yrange [-3:3]",
+            "set zrange [0:3]",
+            "set key off",
+            "set ticslevel 0",
+            "set border 4095",
+            "splot \'" + PATH + "Distribution of " + std::to_string(N) +" points\' u " +
+            "1:2:3 lw 1 lt rgb 'red' ti \'Nodes\'",
+            "splot \'" + PATH + "detectors\' u 1:2:3 lw 3 lt rgb 'black'",
+            "splot \'" + PATH + "cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
+            "splot \'" + PATH + "cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
+            "splot '-' u 1:2:3 w lines"};
     for (const auto& it : stuff)
         fprintf(gp, "%s\n", it.c_str());
     double x, y, z;
@@ -681,7 +681,9 @@ std::tuple<double, double, double> interpolation_for_single_particle (int& group
     return std::make_tuple(Compton, ph, pp);
 }
 
-void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<std::tuple<double, double, double>>& sigmas) {
+void interpolation_plot(std::string matter, std::vector<double>& E,
+                        std::vector<std::tuple<double, double, double>>& sigmas) {
+    std::string data_location = PATH + matter;
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
@@ -689,12 +691,12 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
                                       "set out \'" + PATH + "Photon Cross Sections for " + matter + ".svg\'",
                                       "set grid xtics ytics",
                                       "set title \'Photon Cross Sections for " + matter + "\'",
-                                      "plot \'" + matter + "\' u 1:2 w lines ti \'Compton Scattering\',\'"
-                                      + matter + "\' u 1:2 lw 1 lt rgb 'black' ti \'Compton Scattering nodes\',\'"
-                                      + matter + "\' u 1:3 w lines ti \'Photoelectric\',\'"
-                                      + matter + "\' u 1:3 lw 1 lt rgb 'black' ti \'Photoelectric nodes\',\'"
-                                      + matter + "\' u 1:4 w lines ti \'Pair Production\',\'"
-                                      + matter + "\' u 1:4 lw 1 lt rgb 'black' ti \'Pair Production nodes\'",
+                                      "plot \'" + data_location + "\' u 1:2 w lines ti \'Compton Scattering\',\'"
+                                      + data_location + "\' u 1:2 lw 1 lt rgb 'black' ti \'Compton Scattering nodes\',\'"
+                                      + data_location + "\' u 1:3 w lines ti \'Photoelectric\',\'"
+                                      + data_location + "\' u 1:3 lw 1 lt rgb 'black' ti \'Photoelectric nodes\',\'"
+                                      + data_location + "\' u 1:4 w lines ti \'Pair Production\',\'"
+                                      + data_location + "\' u 1:4 lw 1 lt rgb 'black' ti \'Pair Production nodes\'",
                                       "set xlabel \'Energy, MeV\'",
                                       "set ylabel \'Cross sections, cm^2/g\'",
                                       "set terminal wxt",
@@ -708,7 +710,8 @@ void interpolation_plot(std::string matter, std::vector<double>& E, std::vector<
 void data_file_creation (std::string DataType, std::vector<double>& xx, std::vector<coord>& yy) {
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
-    DataType += PATH;
+    DataType = PATH + DataType;
+    std::cout << DataType << std::endl;
     fout.open(DataType);
     for(int i = 0; i < xx.size(); i++)
         fout << xx[i] << '\t' << std::get<0>(yy[i]) << '\t' << std::get<1>(yy[i])
