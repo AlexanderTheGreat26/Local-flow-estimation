@@ -111,9 +111,6 @@ void interpolation_plot (std::string matter, std::vector<double>& E,
 void path_def (std::string& path);
 coord vector_creation (coord& A, coord& B);
 
-/*template<typename T, std::enable_if_t<std::is_floating_point<T>>* = nullptr>
-T my_rand(T min, T max);*/
-
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
@@ -156,7 +153,6 @@ int main() {
 
     std::cout << "Done!" << std::endl;
 
-
     return 0;
 }
 
@@ -177,7 +173,7 @@ std::vector<coord> polar () {
 //Function transform coordinates of points in polar system to Descart coordinate system.
 std::vector<coord> coordinate_transformation (std::vector<coord>& coords) {
     std::vector<coord> xOy;
-    for(int i = 0; i < coords.size(); i++) {
+    for (int i = 0; i < coords.size(); i++) {
         double phi = std::get<0>(coords[i]);
         double rho = std::get<1>(coords[i]);
         double x = rho * cos(phi);
@@ -206,8 +202,8 @@ void default_distribution_plot (std::string& name, std::string& data, std::strin
         throw std::runtime_error ("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {"set term svg",
                                       "set out \'" + PATH + name + ".svg\'",
-                                      "set xrange [-1:1]",
-                                      "set yrange [-1:1]",
+                                      //"set xrange [-1:1]",
+                                      //"set yrange [-1:1]",
                                       "set xlabel \'" + xlabel + "\'",
                                       "set ylabel \'" + ylabel + "\'",
                                       "set grid xtics ytics",
