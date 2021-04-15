@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 1; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -201,7 +201,6 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx) {
 //Function plots points of borning. It shows the initial distribution.
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel, std::string ylabel, std::string title) {
     //if you have problems with ".svg", you have to change ".svg" to ".pdf" in strings bellow.
-    //std::cout << PATH + data << std::endl;
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error ("Error opening pipe to GNUplot.");
@@ -237,7 +236,6 @@ double abs_components(const Tuple& t) {
 //Function returns the beam direction and free run length for particle.
 /* Note: always cos_gamma > 0, but it's n*/
 longDoubleTuple beam_direction (double sigma) {
-    //std::cout << sigma << std::endl;
     std::uniform_real_distribution<> dis(0.0, 1.0);
     double L, mu, a, b, cos_psi, cos_gamma, d = 10;
     do {
@@ -251,7 +249,6 @@ longDoubleTuple beam_direction (double sigma) {
         cos_psi = a / std::sqrt(d);
         cos_gamma = std::sqrt(1.0 - (std::pow(mu, 2) + std::pow(cos_psi, 2)));
     } while (std::pow(mu, 2) + std::pow(cos_psi, 2) > 1);
-    //std::cout << cos_gamma << std::endl;
     return std::make_tuple(cos_gamma, mu, cos_psi, L);
 }
 
@@ -280,21 +277,11 @@ void coordinates_from_tuple (double& x, double& y, double& z, coord& point) {
     z = std::get<2>(point);
 }
 
-//The templates below will be used for defining the angle between the vectors.
-
-
 //The functions bellow using for solving systems of linear equations via LU-decomposition.
 void LU_decomposition (std::vector<std::array<double, 3>>& default_matrix,
                        std::vector<std::array<double, 3>>& L,
                        std::vector<std::array<double, 3>>& U) {
     U = default_matrix;
-    /*for (int i = 0; i < default_matrix.size(); i++) {
-        for (int j = 0; j < default_matrix[i].size(); j++) {
-            std::cout << U[i][j] << '\t';
-        }
-        std::cout << std::endl;
-    }*/
-    //std::cout << std::endl;
     for (int i = 0; i < default_matrix.size(); i++) {
         for (int j = 0; j < default_matrix[i].size(); j++) {
             U.at(i).at(j) = 0;
@@ -332,7 +319,7 @@ std::vector<double> reverse (std::vector<std::array<double, 3>>& U, std::vector<
     for (int i = y.size()-1; i >= 0; i--) {
         for (int j = i + 1; j < y.size(); j++)
             x.at(i) -= U[i][j] * x[j];
-        x.at(i) /= U[i][i];//
+        x.at(i) /= U[i][i];
     }
     return x;
 }
@@ -353,7 +340,6 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
     cos_gamma = std::get<0>(beam);
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
     coord intersection_coordinate;
-    //std::cout << x_init << '\t' << y_init <<'\t' <<z_init << std::endl;
     int i = 0;
     do {
         A = std::get<0>(planes[i]);
@@ -369,14 +355,12 @@ coord definition_of_intersection_points (coord& initial_point, longDoubleTuple& 
         intersection_coordinate = std::move(solve(matrix, right_part));
         coordinates_from_tuple(x, y, z, intersection_coordinate);
         i++;
-        if ((x == x_init || y == y_init || z == z_init) && i < planes.size()) continue;
-    } while (i < planes.size() && !(std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1));
-    if (x == x_init || y == y_init || z == z_init) //There used "or", because comparing two doubles is not safe.
-        //We exclude some cases, but we need to have more the 1e6 particles for have one of them.
-       ///return std::make_tuple(cos_alpha, cos_beta, cos_gamma); //Well, then we have to compare it with beam.
-        return std::make_tuple(0.0, 0.0, 0.0);
-        //If the beam directed outside the box then go to another case.
-    return intersection_coordinate;
+    } while (i < planes.size() && !(std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1)
+    || intersection_coordinate == initial_point);
+    if (intersection_coordinate == initial_point || !(std::abs(x) <= 1 && std::abs(y) <= 1 && z > 0 && z <= 1))
+        return initial_point;
+    else
+        return intersection_coordinate;
 }
 
 //Just a function for creating vector with two points.
@@ -384,13 +368,6 @@ coord vector_creation (coord& A, coord& B) {
     return std::make_tuple(std::get<0>(B) - std::get<0>(A),
                            std::get<1>(B) - std::get<1>(A),
                            std::get<2>(B) - std::get<2>(A));
-}
-
-coord normal_vector (longDoubleTuple plane) {
-    double x = std::get<0>(plane);
-    double y = std::get<1>(plane);
-    double z = std::get<2>(plane);
-    return std::make_tuple(x, y, z);
 }
 
 template<typename T, size_t... Is>
@@ -402,10 +379,6 @@ template <class Tuple>
 double scalar_prod_components(const Tuple& t, const Tuple& t1) {
     constexpr auto size = std::tuple_size<Tuple>{};
     return scalar_prod_components_impl(t, t1,  std::make_index_sequence<size>{}, std::make_index_sequence<size>{});
-}
-
-double vector_cos (coord& a, coord& b) {
-    return scalar_prod_components(a, b) / (abs_components(a) * abs_components(b));
 }
 
 template<typename T, size_t... Is>
@@ -429,49 +402,27 @@ coord vector_offset (coord& frame_of_reference, coord& vector) {
  * If it interaction outside the sarcophagus functions returns the point of intersection with one of the planes,
  * otherwise it returns the interaction point in air. */
 coord definition_of_interaction_points (coord& initial_point, longDoubleTuple& direction) {
-    double x, x_init, y, y_init, z, z_init;
+    double x_init, y_init, z_init, x, y, z;
     coordinates_from_tuple(x_init, y_init, z_init, initial_point);
-    coord distance = definition_of_intersection_points(initial_point, direction);
-    coord trajectory = coordinates_of_the_interaction(direction);
-    coord free_run = vector_offset(initial_point, trajectory);
-    if (std::abs(x_init) < 1 && std::abs(y_init) < 1 && z_init >= 0 && z_init < 1) {
-        if (abs_components(distance) < abs_components(free_run))
-            return distance;
+    coord intersection_point = definition_of_intersection_points(initial_point, direction);
+    coord intersection_vector = vector_creation(initial_point, intersection_point);
+    coord free_run_direction = coordinates_of_the_interaction(direction);
+    coord free_run = vector_offset(initial_point, free_run_direction);
+    coordinates_from_tuple(x, y, z, free_run);
+    // Well, we have an error when try to compare two doubles.
+    // So we have to enter the amount of acceptable error.
+    double error = 1.0e-15;
+    if (std::abs(x_init) < 1 && std::abs(y_init) < 1 && z_init >= 0 && z_init < 1)
+        if (abs_components(intersection_vector) < abs_components(free_run))
+            return intersection_point;
         else
             return free_run;
-    } else {
-        if (definition_of_intersection_points(initial_point, direction) == std::make_tuple(0, 0, 0))
+    else
+        if (std::abs(abs_components(intersection_point) - abs_components(initial_point)) < error)
             return free_run;
-        else {
-            std::cout << "Distance:\t" << std::get<0>(distance)  << '\t' << std::get<1>(distance) << '\t' << std::get<2>(distance) << std::endl;
-            return distance;
-        }
-    }
-}
-    /*if (std::abs(x_init) < 1 && std::abs(y_init) < 1 && z_init >= 0 && z_init < 1) {
-        coord intersection_point = std::move(definition_of_intersection_points(initial_point, direction));
-
-        //trajectory = std::move(vector_creation(initial_point, intersection_point));
-        coord default_beam = coordinates_of_the_interaction(direction);
-        coord beam_offset = vector_creation(initial_point, default_beam);
-        if (abs_components(beam_offset) < abs_components(trajectory))
-            return beam_offset;
         else
             return intersection_point;
-    } else { // Otherwise, when the current frame of reference inside the Pb, we have two ways too:
-        coord default_beam = coordinates_of_the_interaction(direction);
-        coord beam_offset = vector_creation(initial_point, default_beam);
-        trajectory = std::move(vector_creation(initial_point, beam_offset));
-        coordinates_from_tuple(x, y, z, beam_offset);
-        if (definition_of_intersection_points(initial_point, direction) == std::make_tuple(0.0, 0.0, 0.0))
-            return beam_offset;
-        else
-            if (abs_components(beam_offset) < abs_components(trajectory))
-                return beam_offset;
-            else
-                return std::move(definition_of_intersection_points(beam_offset, direction));
-            }
-}*/
+}
 
 //Function returns the probability for types of interaction for environment (which defines with argument).
 std::vector<std::pair<double, std::string>> statistical_weight (std::tuple<double, double, double>& sigma,
@@ -516,8 +467,8 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     sigma_sum = sum_components(particle_sigma);
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
-    double x, y, z;
-    coordinates_from_tuple(x, y, z, particle_coordinate);
+    //double x, y, z;
+    //coordinates_from_tuple(x, y, z, particle_coordinate);
     /*for (int i = 0; i < detectors.size(); i++) {
         coordinates_from_tuple(x, y, z, detectors[i]);
         coord tau = vector_creation(particle_coordinate, detectors[i]);
@@ -565,9 +516,9 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                     flow_detection(sigma_sum, p_air, type, E, "air", B);
                 else
                     flow_detection(sigma_sum, p_Pb, type, E, "Pb", B);
-                //std::cout << x << '\t' << y << '\t' << z << std::endl;
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_interaction_points(B, direction);
+                coordinates_from_tuple(x, y, z, C);
                 cos_ab = cos_t(A, B, C);
                 A = B;
                 B = C;
@@ -580,7 +531,6 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
             }
             if (std::isnan(alpha)) break;
             coordinates_from_tuple(x, y, z, B);
-            std::cout << x << '\t' << y << '\t' << z << std::endl;
         } while (type.empty() == 1 || type == "Compton" && E > E_min);
         Energies.at(i) = Energy;
     }
@@ -592,9 +542,9 @@ void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term pdf",
-                                      "set output \'" + PATH + "test.pdf\'",
-                                      //"set term wxt",
+    std::vector<std::string> stuff = {//"set term pdf",
+                                      //"set output \'" + PATH + "test.pdf\'",
+                                      "set term wxt",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
                                       "set xrange [-3:3]",
@@ -603,8 +553,6 @@ void plot(std::array<std::vector<coord>, N>& points) {
                                       "set key off",
                                       "set ticslevel 0",
                                       "set border 4095",
-                                      "splot \'" + PATH + "Distribution of " + std::to_string(N) +" points\' u " +
-                                      "1:2:3 lw 1 lt rgb 'red' ti \'Nodes\'",
                                       "splot \'" + PATH + "detectors\' u 1:2:3 lw 3 lt rgb 'black'",
                                       "splot \'" + PATH + "cap\' u 1:2:3 w lines lw 2 lt rgb 'black'",
                                       "splot \'" + PATH + "cap\' u 1:2:3 w boxes lw 2 lt rgb 'black'",
@@ -616,10 +564,8 @@ void plot(std::array<std::vector<coord>, N>& points) {
         for (int j = 0; j < points[i].size(); j++) {
             coordinates_from_tuple(x, y, z, points[i][j]);
             fprintf(gp, "%f\t%f\t%f\n", x, y, z);
-            //std::cout << x << '\t' << y << '\t' << z << std::endl;
         }
         fprintf(gp, "%c\n%s\n", 'e', "splot '-' u 1:2:3 w lines");
-        std::cout << std::endl;
     }
     fprintf(gp, "%c\n", 'q');
     pclose(gp);
@@ -746,7 +692,6 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
     //For reading created files via Matlab use command: M = dlmread('/PATH/file'); xi = M(:,i);
     std::ofstream fout;
     DataType = PATH + DataType;
-    //std::cout << DataType << std::endl;
     fout.open(DataType);
     for(int i = 0; i < xx.size(); i++)
         fout << xx[i] << '\t' << std::get<0>(yy[i]) << '\t' << std::get<1>(yy[i])
@@ -784,5 +729,3 @@ void path_def (std::string& path) {
 /* We need to know number of virtual particles which detector registers.
  * So we have an array with coordinates and array with Energies for every particle.
  * let's collect their contribution in every detector. */
-
-//TEST THE INTERSECTIONS ALGORITHM!
