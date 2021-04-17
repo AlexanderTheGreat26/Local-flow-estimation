@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 1e2; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 10; //Number of points. //Do not use more than 0.5e4 on old computers!
 constexpr double eps = 1.0 / N;
 const double R = 1;
 const double pi = 3.14159265359;
@@ -463,6 +463,21 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     sigma_sum = sum_components(particle_sigma);
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
+    /*double x_det, y_det, z_det;
+        for (int i = 0; i < detectors.size(); i++) {
+            coordinates_from_tuple(x_det, y_det, z_det, detectors[i]);
+            coord tau = vector_creation(particle_coordinate, detectors[i]);
+            double distance = abs_components(tau);
+            if (z_det <= 1) { // inside the box
+                eta[i].emplace_back(p[0].first * std::exp(-distance)/std::pow(distance, 2) *
+                std::get<0>(particle_sigma)/((std::get<0>(sigmas_air[group])+std::get<0>(sigmas_air[group+1]))/2.0));
+            } else {
+                eta[i].emplace_back(p[0].first * std::exp(-distance)/std::pow(distance, 2) *
+                std::get<0>(particle_sigma)/((std::get<0>(sigmas_Pb[group])+std::get<0>(sigmas_Pb[group+1]))/2.0));
+            }
+    }*/
+
+
     //double x, y, z;
     //coordinates_from_tuple(x, y, z, particle_coordinate);
     /*for (int i = 0; i < detectors.size(); i++) {
@@ -540,7 +555,7 @@ void plot(std::array<std::vector<coord>, N>& points) {
         throw std::runtime_error("Error opening pipe to GNUplot.");
     std::vector<std::string> stuff = {//"set term pdf",
                                       //"set output \'" + PATH + "test.pdf\'",
-                                      "set term wxt",
+                                      "set term pop",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
                                       "set xrange [-3:3]",
@@ -716,6 +731,8 @@ std::string exec(std::string str) {
 void path_def (std::string& path) {
     if (path.find("cmake-build-debug") != std::string::npos)
         path += "/../";
+    else
+        path += '/';
 }
 
 
