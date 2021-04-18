@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 0.5e4; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 0.5e3; //Number of points. //Do not use more than 0.5e4 on old computers!
 
 const double R = 1;
 const double pi = 3.14159265359;
@@ -65,6 +65,9 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
 
 void data_file_creation (std::string DataType, std::vector<std::pair<int, int>>& xx);
 
+void data_file_creation (std::string DataType, std::vector<std::pair<int, double>>& xx);
+
+
 void default_distribution_plot (std::string& name, std::string& data, std::string xlabel,
                                 std::string ylabel, std::string title);
 
@@ -89,7 +92,6 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
 std::vector<std::tuple<double, double, double>> interpolated_database (std::vector<longDoubleTuple>& default_database);
 
 std::string exec(std::string str);
-//void flow_detection (std::vector<std::tuple<coord, double, int>>& inside_the_box, std::vector<coord>& detectors);
 
 std::string PATH = exec("echo $PWD");
 
@@ -107,7 +109,7 @@ std::vector<coord> detectors = {std::make_tuple(0, 0, 0.5),
 
 const int detectors_number = detectors.size();
 
-std::vector<std::vector<double>> eta (detectors_number);
+std::vector<std::vector<std::vector<double>>> eta (detectors_number);
 
 std::vector<std::vector<int>> groups_in_detector (detectors_number);
 
@@ -124,6 +126,10 @@ void detector_statistics_plot (std::string data, std::string& title);
 coord vector_creation (coord& A, coord& B);
 
 void coordinates_from_tuple (double& x, double& y, double& z, coord& point);
+
+std::vector<std::vector<std::pair<int, double>>> flow_through_detector (std::array<std::vector<coord>, N>& interactions);
+
+void detector_plot (std::string data, std::string title);
 
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -146,19 +152,24 @@ int main() {
     std::cout << "Done!" << std::endl;
 
 
-    std::cout << "Computing...\t";
+    std::cout << "Computing..." << std::endl;
 
     std::vector<coord> borning = std::move(polar());
     std::vector<coord> born_points = std::move(coordinate_transformation(borning));
     std::string name = "Distribution of " + std::to_string(N) + " points";
     data_file_creation(name, born_points);
+    for (int i = 0; i < detectors_number; i++) //Did not allocate memory - died.
+        eta[i].resize(number_of_energy_groups);
     std::array<std::vector<coord>, N> interaction_points = std::move(interactions(born_points));
     std::vector<std::vector<std::pair<int, int>>> detectors_data = std::move(detector_readings());
     std::vector<std::string> names;
+    std::vector<std::vector<std::pair<int, double>>> density = flow_through_detector (interaction_points);
     for (int i = 0; i < detectors_number; i++) {
         names.emplace_back("detector_" + std::to_string(i));
         data_file_creation(names[i], detectors_data[i]);
+        data_file_creation(names[i]+"_density", density[i]);
     }
+
     std::cout << "Done!" << std::endl;
 
 
@@ -169,14 +180,15 @@ int main() {
     interpolation_plot("Pb", borders_of_groups, sigmas_air);
     cap();
     data_file_creation("detectors", detectors);
-    plot(interaction_points);
     for (int i = 0; i < detectors_number; i++) {
         double x, y, z;
         coordinates_from_tuple(x,y, z, detectors[i]);
         std::string title = "Detector inside the ";
         title += (z <= 1) ? "air" : "Pb";
         detector_statistics_plot(names[i], title);
+        detector_plot(names[i] + "_density", "Density flow through the " + title);
     }
+    plot(interaction_points);
 
     std::cout << "Done!" << std::endl;
 
@@ -227,6 +239,15 @@ void data_file_creation (std::string DataType, std::vector<std::pair<int, int>>&
     fout.open(DataType);
     for (int i = 0; i < data.size(); i++)
         fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) << std::endl;
+    fout.close();
+}
+
+void data_file_creation (std::string DataType, std::vector<std::pair<int, double>>& data) {
+    std::ofstream fout;
+    DataType = PATH + DataType;
+    fout.open(DataType);
+    for (int i = 0; i < data.size(); i++)
+        fout << (std::get<0>(data[i]) * group_range + borders_of_groups[0]) << '\t' << std::get<1>(data[i]) << std::endl;
     fout.close();
 }
 
@@ -355,7 +376,7 @@ std::vector<double> reverse (std::vector<std::array<double, 3>>& U, std::vector<
     return x;
 }
 
-coord solve(std::vector<std::array<double, 3>> matrix, std::vector<double>& free_numbers_column) {
+coord solve (std::vector<std::array<double, 3>> matrix, std::vector<double>& free_numbers_column) {
     std::vector<std::array<double, 3>> L(3), U(3);
     LU_decomposition(matrix, L, U);
     std::vector<double> straight_run_results = std::move(direct(L, free_numbers_column));
@@ -486,6 +507,13 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
     return y_0 + (y_1 - y_0)/(x_1 - x_0) * (x - x_0);
 }
 
+void density_estimation (double W, double sigma_0, double sigma_1, int group, int& detector_number,
+                         double& distance, std::tuple<double, double, double>& particle_sigma) {
+    double tmp = (W * std::exp(-distance) / std::pow(distance, 2) *
+                  std::get<0>(particle_sigma) / ((sigma_0 + sigma_1) / 2.0));
+    eta[detector_number][group].emplace_back((distance != 0) ? tmp : 0);
+}
+
 void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::string>>& p, std::string& type,
                      double& E, std::string environment, coord& particle_coordinate) {
     int group = energy_group(E);
@@ -507,17 +535,15 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
             if (z_det <= 1) { // We have to include particles only inside the box.
                 if (environment == "air") {
                     groups_in_detector.at(i).emplace_back(group);
-                    eta[i].emplace_back(p[0].first * std::exp(-distance) / std::pow(distance, 2) *
-                                        std::get<0>(particle_sigma) /
-                                        ((std::get<0>(sigmas_air[group]) + std::get<0>(sigmas_air[group + 1])) / 2.0));
-                } else continue;
+                    density_estimation(p[0].first, std::get<0>(sigmas_air[group]), std::get<0>(sigmas_air[group+1]),
+                                       group, i, distance, particle_sigma);
+                    } else continue;
             } else { // Only outside particles.
                 if (environment == "Pb") {
                     groups_in_detector.at(i).emplace_back(group);
-                    eta[i].emplace_back(p[0].first * std::exp(-distance) / std::pow(distance, 2) *
-                                        std::get<0>(particle_sigma) /
-                                        ((std::get<0>(sigmas_Pb[group]) + std::get<0>(sigmas_Pb[group + 1])) / 2.0));
-                } else continue;
+                    density_estimation(p[0].first, std::get<0>(sigmas_Pb[group]), std::get<0>(sigmas_Pb[group+1]),
+                                       group, i, distance, particle_sigma);
+                    } else continue;
             }
         }
     }
@@ -558,6 +584,15 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 A = points[i];
                 direction = std::move(beam_direction(sigma_2_air_sum));
                 B = definition_of_interaction_points(A, direction);
+                for (int j = 0; j < detectors_number; j++) {
+                    double x_det, y_det, z_det;
+                    coordinates_from_tuple(x_det, y_det, z_det, detectors[i]);
+                    coord tau = vector_creation(A, detectors[i]);
+                    double distance = abs_components(tau);
+                    if (z_det <= 1) // Just for born including.
+                        density_estimation(1, std::get<0>(sigmas_air[sigmas_air.size()-2]), std::get<0>(sigmas_air[sigmas_air.size()-1]),
+                                           number_of_energy_groups-1, j, distance, sigmas_air[sigmas_air.size()-1]);
+                }
                 flag = true;
             }
             if (std::isnan(alpha)) break;
@@ -573,9 +608,9 @@ void plot(std::array<std::vector<coord>, N>& points) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term pdf",
-                                      "set output \'" + PATH + "test.pdf\'",
-                                      //"set term pop",
+    std::vector<std::string> stuff = {//"set term pdf",
+                                      //"set output \'" + PATH + "Hedgehog.pdf\'",
+                                      "set term pop",
                                       "set multiplot",
                                       "set grid xtics ytics ztics",
                                       "set xrange [-3:3]",
@@ -731,7 +766,7 @@ void data_file_creation (std::string DataType, std::vector<double>& xx, std::vec
 }
 
 //Just a function for returning the terminal output.
-std::string exec(std::string str) {
+std::string exec (std::string str) {
     const char* cmd = str.c_str();
     std::array<char, 128> buffer;
     std::string result;
@@ -784,11 +819,59 @@ void detector_statistics_plot (std::string data, std::string& title) {
                                       "set xlabel \'Number of group\'",
                                       "set ylabel \'Contributed particles count\'",
                                       "set title \'" + title + "\'",
-                                      "set yrange [0:" + std::to_string(N) + "]",
+                                      //"set yrange [0:" + std::to_string(N) + "]",
                                       "set xrange [0:" + std::to_string(number_of_energy_groups) + "]",
                                       "set boxwidth 0.5",
                                       "set style fill solid",
                                       "plot \'" + data + "\' using 1:2 with boxes",
+                                      "set terminal pop",
+                                      "set output",
+                                      "replot", "q"};
+    for (const auto& it : stuff)
+        fprintf(gp, "%s\n", it.c_str());
+    pclose(gp);
+}
+
+//We have Energies for every particle and coordinates of intersection there.
+std::vector<std::vector<std::pair<int, double>>> flow_through_detector (std::array<std::vector<coord>, N>& interactions) {
+    std::vector<std::vector<std::pair<int, double>>> ans (detectors_number);
+    std::vector<std::vector<double>> eta_sum (detectors_number); //Consists sum for every group;
+    int number_of_contributed_particles = 0;
+    for (int i = 0; i < eta.size(); i++) {
+        for (int j = 0; j < eta[i].size(); j++) {
+            number_of_contributed_particles += eta[i][j].size();
+            double sum_of_elems = 0;
+            std::for_each(eta.at(i).at(j).begin(), eta.at(i).at(j).end(), [&] (double n) { sum_of_elems += (std::isnan(n)) ? 0 : n; });
+            eta_sum.at(i).emplace_back(sum_of_elems);
+            //std::cout << sum_of_elems << std::endl;
+        }
+    }
+    for (int i = 0; i < detectors_number; i ++) {
+        double sum = 0;
+        for (int j = 0; j < eta_sum[i].size(); j++) {
+            sum += (std::isnan(eta_sum[i][j])) ? 0 : eta_sum[i][j];
+            ans.at(i).emplace_back(std::make_pair(j, eta_sum[i][j]));
+        }
+        double x, y, z;
+        coordinates_from_tuple(x, y, z, detectors[i]);
+        //std::cout << "Average flow in (" << x << ", " << y << ", " << z << "):\t" << sum/number_of_contributed_particles << std::endl;
+    }
+    return ans;
+}
+
+void detector_plot (std::string data, std::string title) {
+    data = PATH + data;
+    FILE *gp = popen("gnuplot  -persist", "w");
+    if (!gp)
+        throw std::runtime_error("Error opening pipe to GNUplot.");
+    std::vector<std::string> stuff = {"set term svg",
+                                      "set output \'" + data + ".svg\'",
+                                      "set key off",
+                                      "set grid xtics ytics",
+                                      "set xlabel \'E, eV\'",
+                                      "set ylabel \'Density, 1/m^2\'",
+                                      "set title \'" + title + "\'",
+                                      "plot \'" + data + "\' using 1:2 with lines",
                                       "set terminal pop",
                                       "set output",
                                       "replot", "q"};
