@@ -507,7 +507,7 @@ double linear_interpolation (double& x_0, double& y_0, double& x_1, double& y_1,
     return y_0 + (y_1 - y_0)/(x_1 - x_0) * (x - x_0);
 }
 
-void density_estimation (double W, double sigma_0, double sigma_1, int group, int& detector_number,
+void density_estimation (double& W, double sigma_0, double sigma_1, int group, int& detector_number,
                          double& distance, std::tuple<double, double, double>& particle_sigma) {
     double tmp = (W * std::exp(-distance) / std::pow(distance, 2) *
                   std::get<0>(particle_sigma) / ((sigma_0 + sigma_1) / 2.0));
@@ -515,7 +515,7 @@ void density_estimation (double W, double sigma_0, double sigma_1, int group, in
 }
 
 void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::string>>& p, std::string& type,
-                     double& E, std::string environment, coord& particle_coordinate) {
+                     double& E, std::string environment, coord& particle_coordinate, double& W) {
     int group = energy_group(E);
     std::vector<std::tuple<double, double, double>> sigma;
     if (environment == "air")
@@ -527,6 +527,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
     p = statistical_weight(particle_sigma, sigma_sum);
     type = interaction_type(p);
     if (type == "Compton") {
+        W *= p[0].first;
         double x_det, y_det, z_det;
         for (int i = 0; i < detectors.size(); i++) {
             coordinates_from_tuple(x_det, y_det, z_det, detectors[i]);
@@ -535,13 +536,13 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
             if (z_det <= 1) { // We have to include particles only inside the box.
                 if (environment == "air") {
                     groups_in_detector.at(i).emplace_back(group);
-                    density_estimation(p[0].first, std::get<0>(sigmas_air[group]), std::get<0>(sigmas_air[group+1]),
+                    density_estimation(W, std::get<0>(sigmas_air[group]), std::get<0>(sigmas_air[group+1]),
                                        group, i, distance, particle_sigma);
                     } else continue;
             } else { // Only outside particles.
                 if (environment == "Pb") {
                     groups_in_detector.at(i).emplace_back(group);
-                    density_estimation(p[0].first, std::get<0>(sigmas_Pb[group]), std::get<0>(sigmas_Pb[group+1]),
+                    density_estimation(W, std::get<0>(sigmas_Pb[group]), std::get<0>(sigmas_Pb[group+1]),
                                        group, i, distance, particle_sigma);
                     } else continue;
             }
@@ -561,6 +562,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
         interaction_points.at(i).emplace_back(points[i]);
         alpha = E_0 / E_e;
         std::string type;
+        double W = 1.0;
         bool flag = false;
         coord A, C, B;
         longDoubleTuple direction;
@@ -570,9 +572,9 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                 Energy.emplace_back(E);
                 interaction_points.at(i).emplace_back(B);
                 if (std::abs(x) <= 1 && std::abs(y) <= 1 && z <= 1)
-                    flow_detection(sigma_sum, p_air, type, E, "air", B);
+                    flow_detection(sigma_sum, p_air, type, E, "air", B, W);
                 else
-                    flow_detection(sigma_sum, p_Pb, type, E, "Pb", B);
+                    flow_detection(sigma_sum, p_Pb, type, E, "Pb", B, W);
                 direction = std::move(beam_direction(sigma_sum));
                 C = definition_of_interaction_points(B, direction);
                 coordinates_from_tuple(x, y, z, C);
@@ -590,7 +592,7 @@ std::array<std::vector<coord>, N> interactions (std::vector<coord>& points) {
                     coord tau = vector_creation(A, detectors[i]);
                     double distance = abs_components(tau);
                     if (z_det <= 1) // Just for born including.
-                        density_estimation(1, std::get<0>(sigmas_air[sigmas_air.size()-2]), std::get<0>(sigmas_air[sigmas_air.size()-1]),
+                        density_estimation(W, std::get<0>(sigmas_air[sigmas_air.size()-2]), std::get<0>(sigmas_air[sigmas_air.size()-1]),
                                            number_of_energy_groups-1, j, distance, sigmas_air[sigmas_air.size()-1]);
                 }
                 flag = true;
@@ -836,15 +838,17 @@ void detector_statistics_plot (std::string data, std::string& title) {
 std::vector<std::vector<std::pair<int, double>>> flow_through_detector (std::array<std::vector<coord>, N>& interactions) {
     std::vector<std::vector<std::pair<int, double>>> ans (detectors_number);
     std::vector<std::vector<double>> eta_sum (detectors_number); //Consists sum for every group;
-    int number_of_contributed_particles = 0;
+    std::vector<int> number_of_contributed_particles;
     for (int i = 0; i < eta.size(); i++) {
+        int contributed_particles = 0;
         for (int j = 0; j < eta[i].size(); j++) {
-            number_of_contributed_particles += eta[i][j].size();
+            contributed_particles += eta[i][j].size();
             double sum_of_elems = 0;
             std::for_each(eta.at(i).at(j).begin(), eta.at(i).at(j).end(), [&] (double n) { sum_of_elems += (std::isnan(n)) ? 0 : n; });
             eta_sum.at(i).emplace_back(sum_of_elems);
             //std::cout << sum_of_elems << std::endl;
         }
+        number_of_contributed_particles.emplace_back(contributed_particles);
     }
     for (int i = 0; i < detectors_number; i ++) {
         double sum = 0;
@@ -854,7 +858,8 @@ std::vector<std::vector<std::pair<int, double>>> flow_through_detector (std::arr
         }
         double x, y, z;
         coordinates_from_tuple(x, y, z, detectors[i]);
-        //std::cout << "Average flow in (" << x << ", " << y << ", " << z << "):\t" << sum/number_of_contributed_particles << std::endl;
+        std::cout << "Average flow in (" << x << ", " << y << ", " << z << "):\t"
+        << sum / number_of_contributed_particles[i] << std::endl;
     }
     return ans;
 }
