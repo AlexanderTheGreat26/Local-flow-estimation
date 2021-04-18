@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 0.5e3; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 0.1e5; //Number of points. //Do not use more than 0.5e4 on old computers!
 
 const double R = 1;
 const double pi = 3.14159265359;
@@ -558,6 +558,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
                 } else continue;
             } else { // Only outside particles.
                 if (environment == "Pb") {
+                    if (E == 2.0e6) continue;
                     groups_in_detector.at(i).emplace_back(group);
                     double contribution = density_estimation(W, std::get<0>(sigmas_Pb[group]), std::get<0>(sigmas_Pb[group+1]),
                                        group, i, distance, particle_sigma);
@@ -565,7 +566,7 @@ void flow_detection (double& sigma_sum, std::vector<std::pair<double, std::strin
                 } else continue;
             }
         }
-    }
+    } else E = 0;
 }
 
 //The function returns energy steps for every particle.
