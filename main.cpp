@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 0.1e5; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 10; //Number of points. //Do not use more than 0.5e4 on old computers!
 
 const double R = 1;
 const double pi = 3.14159265359;
@@ -149,7 +149,7 @@ int main() {
     sigmas_air = std::move(interpolated_database(air_data));
     data_file_creation("air", borders_of_groups, sigmas_air);
     std::vector<longDoubleTuple> Pb_data = std::move(database_read(PATH + "Pb_sigmas_database"));
-    sigmas_Pb = std::move(interpolated_database(air_data));
+    sigmas_Pb = std::move(interpolated_database(Pb_data));
     data_file_creation("Pb", borders_of_groups, sigmas_Pb);
 
     std::cout << "Done!" << std::endl;
