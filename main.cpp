@@ -253,7 +253,7 @@ void data_file_creation (std::string DataType, std::vector<std::pair<int, int>>&
     fout.open(DataType);
     double n = norm(data);
     for (int i = 0; i < data.size(); i++)
-        fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) << std::endl;
+        fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) / n << std::endl;
     fout.close();
 }
 
