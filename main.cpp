@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 
-const int N = 10; //Number of points. //Do not use more than 0.5e4 on old computers!
+const int N = 0.3e5; //Number of points. //Do not use more than 0.5e4 on old computers!
 
 const double R = 1;
 const double pi = 3.14159265359;
@@ -149,7 +149,7 @@ int main() {
     sigmas_air = std::move(interpolated_database(air_data));
     data_file_creation("air", borders_of_groups, sigmas_air);
     std::vector<longDoubleTuple> Pb_data = std::move(database_read(PATH + "Pb_sigmas_database"));
-    sigmas_Pb = std::move(interpolated_database(Pb_data));
+    sigmas_Pb = std::move(interpolated_database(air_data));
     data_file_creation("Pb", borders_of_groups, sigmas_Pb);
 
     std::cout << "Done!" << std::endl;
@@ -239,10 +239,19 @@ void data_file_creation (std::string DataType, std::vector<coord>& xx) {
     fout.close();
 }
 
+int norm (std::vector<std::pair<int, int>>& data) {
+    int max_count = 0;
+    for (int i = 0; i < data.size(); i++)
+        if (data[i].second > max_count)
+            max_count = data[i].second;
+    return max_count;
+}
+
 void data_file_creation (std::string DataType, std::vector<std::pair<int, int>>& data) {
     std::ofstream fout;
     DataType = PATH + DataType;
     fout.open(DataType);
+    double n = norm(data);
     for (int i = 0; i < data.size(); i++)
         fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) << std::endl;
     fout.close();
