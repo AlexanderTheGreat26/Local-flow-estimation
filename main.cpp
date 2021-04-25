@@ -192,9 +192,9 @@ int main() {
         std::string title = "Detector inside the ";
         title += (z <= 1) ? "air" : "Pb";
         detector_statistics_plot(names[i], title);
-        detector_plot(names[i] + "_density", "Density flow through the " + title);
+        detector_plot(names[i] + "_density", "Contribution to flow through the " + title);
     }
-    plot(interaction_points);
+    //plot(interaction_points);
 
     std::cout << "Done!" << std::endl;
 
@@ -251,7 +251,8 @@ void data_file_creation (std::string DataType, std::vector<std::pair<int, int>>&
     std::ofstream fout;
     DataType = PATH + DataType;
     fout.open(DataType);
-    double n = norm(data);
+    double n = (DataType.find("_2") != std::string::npos) ? N : norm(data);
+
     for (int i = 0; i < data.size(); i++)
         fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) / n << std::endl;
     fout.close();
@@ -271,7 +272,7 @@ void data_file_creation (std::string DataType, std::vector<std::pair<double, dou
     DataType = PATH + DataType;
     fout.open(DataType);
     for (int i = 0; i < data.size(); i++)
-        fout << std::get<0>(data[i]) << '\t' << std::get<1>(data[i]) << std::endl;
+        fout << std::get<0>(data[i]) / 1.0e6 << '\t' << std::get<1>(data[i]) << std::endl;
     fout.close();
 }
 
@@ -846,8 +847,8 @@ void detector_statistics_plot (std::string data, std::string& title) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term svg",
-                                      "set output \'" + data + ".svg\'",
+    std::vector<std::string> stuff = {"set term eps",
+                                      "set output \'" + data + ".eps\'",
                                       "set key off",
                                       "set grid xtics ytics",
                                       "set xlabel \'Number of group\'",
@@ -900,12 +901,12 @@ void detector_plot (std::string data, std::string title) {
     FILE *gp = popen("gnuplot  -persist", "w");
     if (!gp)
         throw std::runtime_error("Error opening pipe to GNUplot.");
-    std::vector<std::string> stuff = {"set term svg",
-                                      "set output \'" + data + ".svg\'",
+    std::vector<std::string> stuff = {"set term eps",
+                                      "set output \'" + data + ".eps\'",
                                       "set key off",
                                       "set grid xtics ytics",
-                                      "set xlabel \'E, eV\'",
-                                      "set ylabel \'Density, 1/m^2\'",
+                                      "set xlabel \'E, MeV\'",
+                                      "set ylabel \'Contribution to density, 1/m^2\'",
                                       "set title \'" + title + "\'",
                                       "plot \'" + data + "\' using 1:2 with lines",
                                       "set terminal pop",
